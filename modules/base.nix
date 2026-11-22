@@ -24,6 +24,34 @@ in {
   config = {
     nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+    # Danish keyboard, English language, Danish money.
+    #
+    # `earlySetup` pushes the keymap into stage 1, which is the part that
+    # matters on the two encrypted hosts: without it the LUKS prompt would
+    # still be a US layout while the rest of the system is Danish.
+    console = {
+      keyMap = "dk";
+      earlySetup = true;
+    };
+
+    i18n.defaultLocale = "en_US.UTF-8";
+    i18n.extraLocaleSettings = {
+      # Money as DKK (1.234,56 kr.) while everything else stays English.
+      LC_MONETARY = "da_DK.UTF-8";
+      # DD-MM-YYYY and 24-hour time. glibc da_DK is literally
+      # `d_fmt "%d-%m-%Y"` + `t_fmt "%T"` + no AM/PM, which is the requested
+      # format; the weekday/month names in date output become Danish, the
+      # program's own text stays English. (en_GB would give 31//12//24,
+      # en_DK ISO, nl_NL a two-digit year - da_DK is the only exact match.)
+      LC_TIME = "da_DK.UTF-8";
+      # Metric and A4 - identical in practice to any other EU locale.
+      LC_MEASUREMENT = "da_DK.UTF-8";
+      LC_PAPER = "da_DK.UTF-8";
+      # LC_NUMERIC and LC_COLLATE stay English on purpose: a comma decimal
+      # separator breaks more scripts than it fixes by hand, and en_US sorting
+      # is what the rest of this repo assumes.
+    };
+
     # nh is the rebuild/clean CLI used on every host. `flake` sets NH_FLAKE, so a
     # plain `nh os switch` (or `nh os boot`) targets this repository without
     # repeating the path. The repo is expected to be cloned at /etc/nixos:

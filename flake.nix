@@ -105,11 +105,12 @@
         { services.disposableRunners.image = "${self.packages.x86_64-linux.ci-guest}/ci-guest.qcow2"; }
       ];
     };
-    # Each skeleton needs its own hosts/<name>/hardware-configuration.nix, which
-    # only `nixos-generate-config` on that machine can produce (see
-    # hosts/README.md). Uncomment once the file exists:
-    # laptop = mkHost { hostName = "laptop"; };
-    # desktop = mkHost { hostName = "desktop"; };
+    # Workstations on the default (unstable) channel. Both hardware files are
+    # committed with a btrfs subvolume layout (laptop adds LUKS), so these
+    # evaluate here; the first install on each machine still needs its own
+    # partitioning run (see README "Partitioning with btrfs subvolumes").
+    nixosConfigurations.laptop = mkHost { hostName = "laptop"; };
+    nixosConfigurations.desktop = mkHost { hostName = "desktop"; };
 
     # Cheap CI gates. The installation assertions are intentionally disabled
     # here: they guard real secrets/hardware, not the shape of the config.

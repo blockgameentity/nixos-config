@@ -24,6 +24,22 @@
     modesetting.enable = true;
     # Ada (4090) runs the open kernel modules.
     open = true;
+    # The 4090 is always the primary GPU, never a render-offload helper: the
+    # iGPU (UHD 770) stays bound to i915 but nothing is routed to it. Both
+    # PRIME modes are off on purpose - `offload` would make the dGPU on-demand
+    # only, and `sync` would copy every frame through the iGPU.
+    prime = {
+      offload.enable = false;
+      sync.enable = false;
+    };
+  };
+
+  # Some applications pick a GPU through libdri/GLX heuristics and would land on
+  # the iGPU with both cards present. These force the NVIDIA vendor libraries
+  # for OpenGL and VA-API in every session, including Wayland.
+  environment.sessionVariables = {
+    __GLX_VENDOR_LIBRARY_NAME = "nvidia";
+    LIBVA_DRIVER_NAME = "nvidia";
   };
 
   home-manager.users.${config.desu.primaryUser}.imports = [ ../home/desktop.nix ];

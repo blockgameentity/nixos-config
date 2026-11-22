@@ -74,11 +74,207 @@ with digests. Do not combine OS migration with database or application upgrades.
 ## Installation
 
 Boot the NixOS installer, partition/mount deliberately (no destructive disk script is included).
-This scaffold assumes UEFI/systemd-boot; adapt it if the server uses legacy BIOS. Generate
-`hardware-configuration.nix` using `nixos-generate-config --root /mnt` and replace the placeholder.
+This scaffold assumes UEFI with the Limine bootloader; adapt it if the server uses legacy BIOS.
 Edit `local.nix`: provision the password-hash file for local console/sudo authentication,
 set application image references, and replace the `PLACEHOLDER` markers. Set timezone and
 networking to match your actual provider. Stage new files before flake evaluation.
+
+### Partitioning with btrfs subvolumes
+
+All hosts use one vfat ESP and one btrfs pool split by purpose. The server gets the most
+subvolumes because it runs containers; the workstations keep eight:
+
+| Host | Subvolumes |
+| --- | --- |
+| `desu` (server) | `@ @nix @home @root @srv @cache @log @tmp @docker @lib` |
+| `desktop` | `@ @nix @home @root @srv @cache @log @tmp` (dual boot, ESP shared with Windows, all inside LUKS) |
+| `laptop` | same eight as the desktop, all inside LUKS (`cryptroot`) |
+
+`@docker` (`/var/lib/docker`) and `@lib` (`/var/lib/containers`) exist only on the server:
+they keep container state out of a root rollback, and nothing else runs containers.
+
+#### Server (`hosts/desu/hardware-configuration.nix`)
+
+```console
+sgdisk -n1:0:+1G -t1:ef00 -c1:boot /dev/nvme0n1     # ESP
+sgdisk -n2:0:0    -t2:8300 -c2:nixos /dev/nvme0n1     # everything else
+mkfs.vfat -F32 -n boot /dev/nvme0n1p1
+mkfs.btrfs -L nixos /dev/nvme0n1p2
+
+# Subvolumes live at the top level (subvolid=5), never inside a mounted root.
+mount -o subvolid=5 /dev/disk/by-label/nixos /mnt
+for sv in @ @nix @home @root @srv @cache @log @tmp @docker @lib; do
+  btrfs subvolume create /mnt/$sv
+done
+umount /mnt
+
+OPTS=noatime,compress=zstd:1
+mount -o "$OPTS",subvol=@ /dev/disk/by-label/nixos /mnt
+mkdir -p /mnt/{nix,home,root,srv,var/{cache,log,tmp},var/lib/{docker,containers},boot}
+mount -o "$OPTS",subvol=@nix   /dev/disk/by-label/nixos /mnt/nix
+mount -o "$OPTS",subvol=@home  /dev/disk/by-label/nixos /mnt/home
+mount -o "$OPTS",subvol=@root  /dev/disk/by-label/nixos /mnt/root
+mount -o "$OPTS",subvol=@srv   /dev/disk/by-label/nixos /mnt/srv
+mount -o "$OPTS",subvol=@cache /dev/disk/by-label/nixos /mnt/var/cache
+mount -o "$OPTS",subvol=@log   /dev/disk/by-label/nixos /mnt/var/log
+mount -o "$OPTS",subvol=@tmp   /dev/disk/by-label/nixos /mnt/var/tmp
+mount -o noatime,subvol=@docker /dev/disk/by-label/nixos /mnt/var/lib/docker
+mount -o noatime,subvol=@lib    /dev/disk/by-label/nixos /mnt/var/lib/containers
+mount -o fmask=0077,dmask=0077 /dev/disk/by-label/boot /mnt/boot
+
+nixos-generate-config --root /mnt   # then compare with hosts/desu/hardware-configuration.nix
+```
+
+#### Desktop (`hosts/desktop/hardware-configuration.nix`)
+
+This machine dual-boots, so the ESP is **shared with Windows Boot Manager and is not
+reformatted**. NixOS only ever owns `nvme0n1p2`; the committed config addresses the ESP by
+UUID (`226E-1C60`), which survives a reinstall as long as the partition is kept. Windows
+itself lives on the other NVMe and is untouched by any of this.
+
+```console
+# Do NOT touch nvme0n1p1 - Windows Boot Manager and Limine both live on it.
+cryptsetup luksFormat --label cryptroot /dev/nvme0n1p2   # destroys the old CachyOS root only
+cryptsetup open /dev/disk/by-label/cryptroot cryptroot
+mkfs.btrfs -L nixos /dev/mapper/cryptroot
+
+mount -o subvolid=5 /dev/mapper/cryptroot /mnt
+for sv in @ @nix @home @root @srv @cache @log @tmp; do
+  btrfs subvolume create /mnt/$sv
+done
+umount /mnt
+
+OPTS=noatime,compress=zstd:1
+mount -o "$OPTS",subvol=@ /dev/mapper/cryptroot /mnt
+mkdir -p /mnt/{nix,home,root,srv,var/{cache,log,tmp},boot}
+mount -o "$OPTS",subvol=@nix   /dev/mapper/cryptroot /mnt/nix
+mount -o "$OPTS",subvol=@home  /dev/mapper/cryptroot /mnt/home
+mount -o "$OPTS",subvol=@root  /dev/mapper/cryptroot /mnt/root
+mount -o "$OPTS",subvol=@srv   /dev/mapper/cryptroot /mnt/srv
+mount -o "$OPTS",subvol=@cache /dev/mapper/cryptroot /mnt/var/cache
+mount -o "$OPTS",subvol=@log   /dev/mapper/cryptroot /mnt/var/log
+mount -o "$OPTS",subvol=@tmp   /dev/mapper/cryptroot /mnt/var/tmp
+mount -o fmask=0077,dmask=0077 /dev/disk/by-uuid/226E-1C60 /mnt/boot
+```
+
+The installer adds a `Limine` firmware entry next to `Windows Boot Manager`; it does not
+remove it. `time.hardwareClockInLocalTime = true` is set for this host so Windows' clock does
+not jump two hours every time you boot it.
+
+#### Laptop (`hosts/laptop/hardware-configuration.nix`)
+
+Everything except the ESP sits inside LUKS2, and LVM sits inside the LUKS container so the
+laptop gets a swap **block device** (needed for hibernation) without a second passphrase.
+Labels are used throughout, so a re-partition only has to keep the labels.
+
+```console
+sgdisk -n1:0:+1G -t1:ef00 -c1:boot /dev/nvme0n1
+sgdisk -n2:0:0    -t2:8309 -c2:cryptroot /dev/nvme0n1
+mkfs.vfat -F32 -n boot /dev/nvme0n1p1
+cryptsetup luksFormat --label cryptroot /dev/nvme0n1p2
+cryptsetup open /dev/disk/by-label/cryptroot cryptroot
+
+# LVM inside LUKS: one volume group, a swap LV for hibernation, a root LV for btrfs.
+pvcreate /dev/mapper/cryptroot
+vgcreate vg0 /dev/mapper/cryptroot
+lvcreate -L 32G -n swap vg0        # MUST be >= RAM + 2 GiB, see "Hibernation" below
+lvcreate -l 100%FREE -n root vg0
+mkfs.btrfs -L nixos /dev/vg0/root
+mkswap /dev/vg0/swap
+
+mount -o subvolid=5 /dev/vg0/root /mnt
+for sv in @ @nix @home @root @srv @cache @log @tmp; do
+  btrfs subvolume create /mnt/$sv
+done
+umount /mnt
+
+OPTS=noatime,compress=zstd:1
+mount -o "$OPTS",subvol=@ /dev/vg0/root /mnt
+mkdir -p /mnt/{nix,home,root,srv,var/{cache,log,tmp},boot}
+mount -o "$OPTS",subvol=@nix   /dev/vg0/root /mnt/nix
+mount -o "$OPTS",subvol=@home  /dev/vg0/root /mnt/home
+mount -o "$OPTS",subvol=@root  /dev/vg0/root /mnt/root
+mount -o "$OPTS",subvol=@srv   /dev/vg0/root /mnt/srv
+mount -o "$OPTS",subvol=@cache /dev/vg0/root /mnt/var/cache
+mount -o "$OPTS",subvol=@log   /dev/vg0/root /mnt/var/log
+mount -o "$OPTS",subvol=@tmp   /dev/vg0/root /mnt/var/tmp
+mount -o fmask=0077,dmask=0077 /dev/disk/by-label/boot /mnt/boot
+swapon /dev/vg0/swap               # so nixos-generate-config sees it
+```
+
+`allowDiscards = true` is set on the LUKS device so the weekly `fstrim` reaches the SSD. That
+reveals which blocks are free to someone reading the raw device (not their contents); on a
+laptop that is the usual tradeoff.
+
+#### Why these boundaries
+
+`@nix` keeps the store out of a root rollback, `@srv` holds mutable service data (`/srv/overleaf`,
+`/srv/spar`), and `@log`/`@cache`/`@tmp` keep churn and cache away from everything else.
+`/nix` and `/var/log` carry `neededForBoot = true` - without it they would be mounted in
+stage 2, after the store and journald are already in use on the root subvolume.
+
+Compression stays `zstd:1` and TRIM is a weekly `fstrim` timer (`modules/btrfs.nix`), not the
+`discard` mount option. Monthly scrub is enabled there too: one mountpoint per filesystem,
+since scrub runs on devices and every subvolume shares them. `overlay2` remains Docker's
+storage driver on btrfs (supported as an overlayfs lower layer since kernel 4.15) - do not
+add `nodatacow` to `@docker` to "fix" it.
+
+`nixos-generate-config` does not know about `neededForBoot`, the subvolume set or `compress=`:
+review the generated file against the committed one instead of overwriting it.
+
+### Swap and memory: zswap, never zram
+
+`modules/memory.nix` is imported by every host and encodes two rules:
+
+- **zswap only.** Compressed page cache in front of a real swap device, `zstd`, pool capped
+  at 25% of RAM, shrinker on. `zramSwap.enable = false` is a plain assignment, not a default,
+  so a host that tries to turn zram on fails evaluation instead of stacking two compressors.
+- **One swap file on the root subvolume**, `/swap`, created by the NixOS swap unit with
+  `btrfs filesystem mkswapfile` (NOCOW, uncompressed - compulsory for swap on btrfs).
+  Sizes: desktop 64 GiB, server 32 GiB, via `desu.memory.swapSizeMiB`. Changing the number
+  recreates the file on the next switch (`resume_offset` would change with it - see below,
+  which is exactly why the laptop does not use a swap file).
+  The laptop sets `desu.memory.swapFile = null` and swaps on its `vg0/swap` LV instead.
+
+`vm.swappiness = 100` and `vm.page-cluster = 0`: with zswap, swapped pages are still in RAM
+(compressed), so spilling early is cheap and the file only holds the overflow.
+
+### Hibernation (laptop only)
+
+The laptop hibernates with `systemctl hibernate`; the desktop and server do not (`/swap` is a
+btrfs swap file there). Two hard requirements:
+
+1. **The swap device must be a block device.** Hibernating into a btrfs swap *file* needs
+   `resume_offset`, a physical offset that changes every time the file is recreated - fragile.
+   Hence `vg0/swap`.
+2. **Swap must be at least RAM + a couple of GiB**, or `systemctl hibernate` refuses with
+   "Not enough swap space". The 32 GiB LV above assumes a 16 GiB laptop; resize with
+   `lvextend`/`lvresize -L` if the machine has more RAM.
+
+Resume works with LUKS because stage 1 unlocks `cryptroot` and activates `vg0` before
+`systemd-hibernate-resume` reads `resume=/dev/vg0/swap`. zswap sits in front of normal swap
+pages, not in front of the hibernation image (swsusp writes that directly to the block
+device), so the compression pool does not have to be drained first.
+
+Suspend-to-RAM works on all three hosts without touching any of this.
+
+### Snapshots vs NixOS generations
+
+Two different rollback mechanisms; only the second is enabled anywhere.
+
+| | NixOS generation | btrfs snapshot |
+| --- | --- | --- |
+| Covers | system profile, kernel, initrd, services config | every file on that subvolume, including `/var/lib`, `/srv`, `/home` |
+| Granularity | per `nixos-rebuild` | whenever a snapshot is taken |
+| Undoes | a bad config or package change | a bad *data* change: failed DB upgrade, deleted files, corrupted container state |
+| Boot entry | yes, `nh os rollback` or an older Limine entry | only if you add entries yourself |
+
+A NixOS rollback does **not** restore `/var/lib/docker`, the Overleaf Mongo data or anything
+else under `/srv`: those are mutable data, not store paths. That is the gap `services.snapper`
+(or the existing restic backups in `modules/backup.nix`) covers. Snapshots are not backups
+either - they share the disk - so restic stays the off-site copy. Enabling snapper later needs
+one more subvolume (`@snapshots`, mounted at `/.snapshots`) and its own rollback runbook;
+do not mount it on top of an existing layout without redoing this partitioning.
 
 ```console
 # Keep the checkout where NH_FLAKE points (modules/base.nix): /etc/nixos.
@@ -101,6 +297,99 @@ nh search <query>           # package search; queries search.nixos.org, not nix-
 `nh` derives the host from the flake, so `nh os switch` activates whichever
 `nixosConfigurations.<hostname>` matches the machine. Pass a path explicitly
 (`nh os switch /some/other/checkout`) or override `NH_OS_FLAKE` per command.
+
+### Encryption (LUKS): the verdict per machine
+
+Decision taken, so it does not get re-litigated every time a disk is touched:
+
+| Host | LUKS | Why |
+| --- | --- | --- |
+| laptop | **yes** (configured) | Leaves the house. Full disk encryption is the difference between "stolen laptop" and "someone reading `/home/desu/.ssh` and every saved session". |
+| desktop | **yes** (configured) | Stays at home, but it holds the same secrets plus a Windows partition. AES-NI on a 14700K makes the I/O overhead a rounding error, and deciding later means reformatting. |
+| server | **no** | A headless box that must come back after a power cut cannot ask for a passphrase. Adding LUKS there means initrd SSH (`boot.initrd.network.ssh`) or TPM2 unlock, and with Secure Boot off a TPM2-bound key can be replayed by booting a custom kernel - so the protection is thin for the operational cost. |
+
+What LUKS does not do: it protects data at rest, not a running system. Anyone with five
+minutes and a USB stick reads an unlocked machine, and a stolen *server* is compromised even
+with FDE unless it was powered off. So the server compensates differently: secrets under
+`/var/lib/secrets` are rotatable (Tailscale key, Cloudflare origin cert, restic credentials,
+CI token), restic sends encrypted backups off-site, and `swapDevices.*.randomEncryption`
+can be turned on to keep plaintext out of the swap file if you want that extra step.
+
+LUKS is unrelated to the Windows anticheat/Secure Boot question: Linux FDE does not touch the
+firmware, so it neither enables nor breaks Secure Boot for Windows.
+
+## Bootloader (Limine)
+
+Every NixOS host enables `boot.loader.limine` (`hosts/{desu,desktop,laptop}/configuration.nix`);
+`boot.loader.systemd-boot` is not enabled anywhere. Limine loads kernels and initrds directly
+from `/boot` and keeps its menu in `/boot/limine.conf`, so `maxGenerations = 10` only bounds
+how many generations appear in the menu - there are no per-generation EFI binaries to pile up.
+`boot.loader.efi.canTouchEfiVariables` stays `true` so the installer writes the `Boot####`
+entry itself. The boot entry editor is left off: an editable command line allows
+`init=/bin/sh`, i.e. root without the disk password.
+
+Switching a machine that currently boots systemd-boot:
+
+```console
+sudo nh os boot          # install Limine as the active loader for the next boot
+sudo reboot              # boot it before touching anything else; keep rescue media ready
+# after confirming the menu and a successful boot:
+sudo rm -rf /boot/EFI/systemd /boot/loader   # stale systemd-boot instance and entries
+sudo efibootmgr -v                           # find the leftover "Linux Boot Manager" entry
+sudo efibootmgr -b <NNNN> -B                 # delete it, or keep it as a fallback
+sudo nh os switch        # make this generation the running one
+```
+
+`nixos-install --flake .#desu` on a fresh disk does this in one step and needs no cleanup.
+Rebuilds after that never touch the firmware entry again unless the EFI partition is replaced.
+
+On the dual-boot desktop, **never delete the `Windows Boot Manager` entry** while cleaning
+the list, and never `rm -rf` anything on the ESP beyond `EFI/systemd` and `loader`. Windows
+and Limine share that partition; the Linux loader lives in `EFI/limine`, Windows in
+`EFI/Microsoft`. If Windows disappears from the boot menu after a Windows update, it is
+Windows rewriting the boot order, not this repo - fix it with `efibootmgr -o`.
+
+## Keyboard, language, currency
+
+| What | Setting | Where |
+| --- | --- | --- |
+| Keyboard, TTYs and the LUKS prompt | `console.keyMap = "dk"` + `console.earlySetup = true` | `modules/base.nix` |
+| Keyboard, X11 / GTK / Qt / Wayland | `services.xserver.xkb.layout = "dk"`, `XKB_DEFAULT_LAYOUT=dk` | `modules/graphical.nix` |
+| Language | `i18n.defaultLocale = "en_US.UTF-8"` | `modules/base.nix` |
+| Currency | `LC_MONETARY = "da_DK.UTF-8"` (DKK) | `modules/base.nix` |
+| Dates and clock | `LC_TIME = "da_DK.UTF-8"` -> `DD-MM-YYYY`, 24h `HH:MM` | `modules/base.nix` |
+| Units / paper | `LC_MEASUREMENT`/`LC_PAPER = da_DK` (metric, A4) | `modules/base.nix` |
+| Time zone | `Europe/Copenhagen` | each `hosts/<name>/configuration.nix` |
+
+`console.earlySetup` is the part that is easy to miss: without it the keymap only applies once
+stage 2 starts, so the **LUKS passphrase would be typed on a US layout** while everything after
+it is Danish. `LC_NUMERIC` and `LC_COLLATE` stay English on purpose: a comma decimal separator
+breaks more scripts than it fixes by hand. `LC_TIME=da_DK` is the only glibc locale that formats
+exactly as wanted (`d_fmt "%d-%m-%Y"`, `t_fmt "%T"`, no AM/PM) - en_GB gives `31//12//24`,
+en_DK gives ISO, nl_NL a two-digit year. Side effect: weekday/month names in date output are
+Danish while the program's own text stays English.
+
+Both workstations are **Wayland-only**: `NIXOS_OZONE_WL=1` and `MOZ_ENABLE_WAYLAND=1` stop
+Chromium/Electron apps and Firefox from silently falling back to XWayland, and the keyboard layout
+is exported as `XKB_DEFAULT_LAYOUT=dk` for compositors that do not read the xkb option. The
+bootloader menu itself uses the firmware's keyboard handling and cannot be changed from NixOS.
+
+## Login: LUKS asks once
+
+The desktop and laptop import `modules/graphical.nix`, which sets
+`services.getty.autologinUser` and `services.displayManager.autoLogin` for `desu`. The disk
+passphrase is the only thing typed at boot; the console (and any display manager added later)
+logs straight in.
+
+That is a deliberate tradeoff: whoever powers the machine on and knows the LUKS passphrase
+gets a logged-in session. The server is unaffected - no autologin, no graphical module.
+
+Note that this repo currently configures **no display manager and no compositor** for the
+graphical hosts: they boot to a TTY with fish. That is a deliberate open item, not an omission -
+the desktop environment / compositor choice (Hyprland, Sway, Niri, Plasma 6) is still being
+decided. `services.displayManager.autoLogin` and the Wayland variables above are already in
+place so that whichever option lands inherits autologin and the Danish layout instead of
+re-introducing a second password prompt.
 
 ## Home profile (shell, prompt, terminal)
 

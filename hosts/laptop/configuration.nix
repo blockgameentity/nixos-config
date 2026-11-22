@@ -9,6 +9,8 @@
   imports = [
     ../../modules/graphical.nix
     ../../modules/cachyos.nix
+    ../../modules/btrfs.nix
+    ../../modules/memory.nix
   ];
 
   networking.hostName = "laptop";
@@ -22,8 +24,19 @@
   # Typical laptop baseline; adjust to the actual hardware.
   # Tailscale itself is enabled by modules/base.nix; only host flags belong here.
   services.tailscale.extraUpFlags = [ "--ssh" ];
-  boot.loader.systemd-boot.enable = true;
+  # Limine instead of systemd-boot; kernels are read straight from /boot.
+  boot.loader.limine = {
+    enable = true;
+    maxGenerations = 10;
+  };
   boot.loader.efi.canTouchEfiVariables = true;
+  # btrfs scrub/trim for the subvolume layout in hardware-configuration.nix.
+  # That file also holds the LUKS device: the whole laptop disk is encrypted
+  # except for the ESP, so the store, /home and the swap file are all inside it.
+  desu.btrfs.enable = true;
+  # No swap file here: the laptop uses a swap LV so hibernation works
+  # (hardware-configuration.nix), and zswap compresses pages in front of it.
+  desu.memory.swapFile = null;
 
   # Hybrid graphics: the AMD iGPU drives the desktop, the RTX 3060 Mobile is used
   # on demand via PRIME render offload (`nvidia-offload <program>`). Both bus IDs
