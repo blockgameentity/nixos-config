@@ -143,9 +143,10 @@ What actually fixes it, in order of effect:
 
 ## Backups of the secrets themselves
 
-`modules/backup.nix` lists `/var/lib/secrets` among restic's default paths, so turning on
-`desu.backup.enable` is the difference between "these files exist on one disk" and "these files
-also exist, encrypted, somewhere else". Without it, a disk failure or a reinstall means
+`modules/backup.nix` lists `/var/lib/secrets` among restic's default paths and
+`desu.backup.enable` is now on (`hosts/desu/local.nix`), so the tier-2 files also exist, encrypted,
+somewhere else - independent of the vault. The repository URL and credentials come from
+`/var/lib/secrets/restic.env`, never from the repo. Without it, a disk failure or a reinstall means
 regenerating every credential on the server - and some of them (Fluxer's encryption keys) cannot
 be regenerated at all.
 

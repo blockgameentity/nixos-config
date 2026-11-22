@@ -40,8 +40,9 @@ No server data or secret values belong in this repository.
   `hosts/mac/configuration.nix` is the nix-darwin trusted-runner service. See `ci/README.md`
   for local test results and deployment gates. `local.nix` enables one repository runner;
   replace the placeholder origin IP and token before deployment.
-- `modules/backup.nix`: restic backups. Off by default; set `desu.backup.repository` (or a
-  credential `environmentFile`) and it stops the writer services, snapshots, then restarts.
+- `modules/backup.nix`: restic backups, on for the server. The repository URL and credentials come
+  from `/var/lib/secrets/restic.env` (or set `desu.backup.repository` with `passwordFile` instead);
+  it stops the writer services, snapshots, then restarts them.
 - `modules/maintenance.nix`: weekly store GC (on by default, 30d) and opt-in flake
   auto-upgrade (`desu.maintenance.autoUpgrade.enable`, no automatic reboot).
 - `docs/runner-plan.md`: CI threat model and authorization requirements.
