@@ -34,6 +34,12 @@ in {
       earlySetup = true;
     };
 
+    # Slow down password guessing at the console and over SSH. 3 s per failure
+    # turns a four-letter password into days of typing instead of seconds; it is
+    # a speed bump, not a substitute for a strong login password.
+    security.pam.services.login.failDelay.enable = true;
+    security.pam.services.sshd.failDelay.enable = true;
+
     i18n.defaultLocale = "en_US.UTF-8";
     i18n.extraLocaleSettings = {
       # Money as DKK (1.234,56 kr.) while everything else stays English.

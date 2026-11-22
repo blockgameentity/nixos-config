@@ -490,6 +490,22 @@ Provision runtime secrets under `/mnt/var/lib/secrets` before first boot, or und
 `/var/lib/secrets` on the installed host. Root-only files, not Nix paths/strings containing
 secret values. Missing secrets intentionally make affected services fail closed.
 
+The storage/reuse/rotation policy for all of this is in `docs/secrets.md`; the passwords
+do not share a value and the ones that are never typed do not live on any machine.
+
+`desu-password-hash` is required on **every** host, not just the server: all three set
+`users.users.desu.hashedPasswordFile`, and `sudo` has nothing to check without it (the
+workstations' autologin hides that until the first `sudo`, or the first SSH login). Generate one
+hash and reuse it, or use a different password per machine:
+
+```console
+mkpasswd -m yescrypt > /mnt/var/lib/secrets/desu-password-hash
+chmod 600 /mnt/var/lib/secrets/desu-password-hash   # root:root, nothing else readable
+```
+
+Activation fails if the option points at a missing file, so create it while the target is still
+mounted at `/mnt`.
+
 - `fluxer.env`: recover the ORIGINAL Fluxer `.env`, do not regenerate its keys.
   Set `FLUXER_DOMAIN=chat.desu.re`, `FLUXER_CADDY_SITE_ADDRESS=:80`, and keep the original
   image version. `LIVEKIT_API_KEY` must match `webhook.api_key` in `livekit.yaml` (currently

@@ -30,6 +30,10 @@
   users.users.desu = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" ];
+    # Password for sudo and for the tailnet SSH login below. Root-only file,
+    # provisioned before the first boot; without it the account is locked and
+    # sudo rejects every password. Generate it with `mkpasswd -m yescrypt`.
+    hashedPasswordFile = "/var/lib/secrets/desu-password-hash";
   };
 
   # Typical laptop baseline; adjust to the actual hardware.
@@ -39,9 +43,7 @@
   services.tailscale.extraUpFlags = [ ];
 
   # Password SSH over the tailnet only (sshd enabled, port 22 opened on nothing
-  # but tailscale0).
-  # The account also needs a password hash - see the note in
-  # hosts/desktop/configuration.nix.
+  # but tailscale0). The hash above is what the login prompt checks.
   services.openssh = {
     enable = true;
     settings = {

@@ -23,6 +23,10 @@
   users.users.desu = {
     isNormalUser = true;
     extraGroups = [ "wheel" ];
+    # Password for sudo and for the tailnet SSH login below. Root-only file,
+    # provisioned before the first boot; without it the account is locked and
+    # sudo rejects every password. Generate it with `mkpasswd -m yescrypt`.
+    hashedPasswordFile = "/var/lib/secrets/desu-password-hash";
   };
 
   # Tailscale itself is enabled by modules/base.nix; only host flags belong here.
@@ -34,10 +38,8 @@
   # sshd is enabled, nothing opens 22 on the LAN or WAN, and the only interface
   # allowed through the firewall is tailscale0.
   #
-  # The account needs a password hash for this to be usable. Set
-  # `users.users.desu.hashedPasswordFile = "/var/lib/secrets/desu-password-hash";`
-  # the same way hosts/desu/local.nix does - without it the account is locked and
-  # password logins fail even though sshd accepts them.
+  # The password hash above is what makes this usable: without that file the
+  # account is locked and password logins fail even though sshd accepts them.
   services.openssh = {
     enable = true;
     settings = {
