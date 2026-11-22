@@ -76,9 +76,11 @@ nix-darwin derivations evaluate. The generated firewall has been installed and i
 an isolated network namespace. The guest image built and booted under KVM: ci-network, Docker,
 and ci-job started, then the VM powered off when the synthetic runner process exited.
 
-Actual GitHub JIT registration, end-to-end job containers, host-level forwarding tests on the
-server, macOS launchd execution, signing, and ARM64 bundle construction still require target
-credentials/machines. Do not represent these as successful deployment tests.
+Actual GitHub JIT registration, end-to-end job containers, macOS launchd execution, signing,
+and full ARM64 application bundles still require target credentials/machines. An additional
+isolated packet test (`test_firewall_traffic.py`) passed for allowed HTTP and blocked SMTP,
+host, private LAN and IPv6. The desktop repository now has a cross-sysroot recipe whose
+AArch64 GTK/WebKit link test passed; its full private application build has not been run.
 
 The isolated firewall test requires a generated rules file (available after building the host):
 
