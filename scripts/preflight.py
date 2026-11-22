@@ -55,9 +55,12 @@ def main():
             parser.error(f'Invalid origin IPv4: {value}')
         if address.version != 4 or not address.is_global:
             parser.error(f'Use the actual public origin IPv4, not a private/reserved address: {value}')
-    for relative in ['fluxer.env', 'ttml.env', 'youtube-cookies.txt', 'desu-password-hash',
-                     'cloudflare/origin.pem', 'cloudflare/origin-key.pem', 'ci-token', 'tailscale-auth-key']:
+    for relative in ['fluxer.env', 'ttml.env', 'desu-password-hash',
+                        'cloudflare/origin.pem', 'cloudflare/origin-key.pem', 'ci-token', 'tailscale-auth-key']:
         checks.secret(relative)
+    # Optional: cookie-based YouTube access is opt-in and only mounted into the worker.
+    if (args.secrets / 'youtube-cookies.txt').exists():
+        checks.secret('youtube-cookies.txt')
     checks.secret('cloudflare', directory=True)
     root = Path(__file__).resolve().parents[1]
     local = (root / 'hosts/desu/local.nix').read_text()

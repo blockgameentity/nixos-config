@@ -24,7 +24,9 @@
    Supply a one-off Tailscale auth key for headless enrollment. Tailscale SSH uses OAuth;
    OpenSSH is disabled and the local password is not accepted for SSH.
    Confirm SSH from another tailnet device before removing rescue-console access.
-4. Build/push/load the TTML image on a machine with its full build context. Push the SPAR
+4. Build/push/load the TTML image on a machine with its full build context (multi-GB
+   PyTorch build), push the TTML flake to its repository, provision an API token, and
+   restore the SQLite state with the containers stopped. Push the SPAR
    flake to its real repository, then supply the image and original data/config.
 5. Install and boot the NixOS host; restore databases/files; run live service/network tests.
 6. Create a repository-scoped GitHub token with Administration:write for runner management.

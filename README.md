@@ -51,7 +51,7 @@ Edit `local.nix`: provision the password-hash file for local console/sudo authen
 set application image references, and remove the local assertion only after reviewing it.
 Set timezone/networking to match your actual provider. Stage new files before flake evaluation.
 
-```
+```console
 git add hosts/desu
 nix flake check
 nix build .#nixosConfigurations.desu.config.system.build.toplevel
@@ -66,7 +66,9 @@ secret values. Missing secrets intentionally make affected services fail closed.
   Set `FLUXER_DOMAIN=chat.desu.re`, `FLUXER_CADDY_SITE_ADDRESS=:80`, and keep the original
   image version. `LIVEKIT_API_KEY` must match `webhook.api_key` in `livekit.yaml` (currently
   `fluxer`), or update that non-secret identifier. The compose file documents required variables.
-- `ttml.env`: original `ttml-fixer/backend/.env`, even if empty.
+- `ttml.env`: original `ttml-fixer/backend/.env` (model tuning, `TTML_FIXER_PROFILE=homelab-cpu`).
+  Cookie exports are optional and worker-only; if present, `youtube-cookies.txt` is mounted
+  read-only only when the service sets it, otherwise remove the mount from `modules/apps.nix`.
 - `youtube-cookies.txt`: original cookie file, root-readable.
 - `desu-password-hash`: a password HASH for the administrator, root-readable.
 - `cloudflare/origin.pem` and `cloudflare/origin-key.pem`: Origin CA certificate covering all
@@ -94,11 +96,35 @@ with reachable member `mongo:27017`. Startup initializes only an uninitialized r
 waits for primary; it does NOT rewrite an existing replica set. Inspect/reconfigure deliberately
 if the old member address differs. After restore, validate `rs.status()` and Overleaf login.
 
-TTML backend: build the original `ttml-fixer/backend/Dockerfile` with its original build context
-on a build machine, publish with a digest or `podman save`/rootful `podman load` on the server.
-Set `desu.images.ttml` accordingly. A local image is not automatically built by NixOS.
-Rootless and rootful Podman have different image stores. Persist cache at `/srv/ttml/cache`.
-No GPU is configured; inspect CPU inference RAM/latency before adding CI workloads.
+TTML backend: build the current `ttml-fixer/backend/Dockerfile` on a build machine
+(`nix run . -- TAG` in the upstream repo's flake), publish by digest, or
+`podman save`/`podman load` into root's store. Set `desu.images.ttml` accordingly; NixOS
+does not build the image. The image runs as **UID 10001**, which is why the module creates
+`/var/lib/ttml-fixer` and `/var/cache/ttml-fixer/{results,models}` with that ownership.
+
+TTML now runs as **two containers** matching its compose contract: an enqueue-only
+`ttml-fixer-api` on `127.0.0.1:8000` (1 GiB / 1 CPU) and `ttml-fixer-worker` (24 GiB /
+8 CPU) that owns model download and inference. They share the SQLite job store, spool and
+result cache; only the worker mounts the model cache and the optional cookies. Queue
+state, results and tokens live in `/var/lib/ttml-fixer`; **back that up with the service
+stopped**, or the SQLite DB and spool can be inconsistent.
+
+Because `ttml.desu.re` is public behind Caddy and Cloudflare, set in `ttml.env`:
+`TTML_FIXER_PUBLIC_INSTANCE=true` with an explicit HTTPS `TTML_FIXER_CORS_ORIGINS`. The
+module already sets `TTML_FIXER_TRUSTED_PROXY_CIDRS=127.0.0.1/32` (Caddy is local) and the
+loopback bind, so do not widen the trust to `0.0.0.0/0`. Before starting the API, provision
+a token inside the container:
+
+```console
+podman exec ttml-fixer-api python -m ttml_fixer.admin \
+  --api-token-db /var/lib/ttml-fixer/state/api-tokens.sqlite3 \
+  token-provision --owner operator-name
+```
+
+Save the one-time token output; only its digest is stored. Startup fails closed if public
+mode has no active token or invalid CORS/proxy settings. Cookie-based YouTube access is
+optional and mounted read-only into the worker only; without it downloads still work for
+non-authenticated requests when `TTML_FIXER_ENABLE_DOWNLOAD` is set. No GPU is configured.
 
 The existing Overleaf image enables shell escape: keep registration restricted and treat
 LaTeX compilation as untrusted execution inside the application container. This setup is
