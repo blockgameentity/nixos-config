@@ -1,0 +1,23 @@
+{ pkgs, ... }: {
+  imports = [ ./hardware-configuration.nix ./local.nix ../../modules/edge.nix ../../modules/apps.nix ];
+  networking.hostName = "desu";
+  networking.useDHCP = true;
+  time.timeZone = "Europe/Copenhagen";
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
+  services.openssh = {
+    enable = true;
+    settings = { PasswordAuthentication = false; KbdInteractiveAuthentication = false; PermitRootLogin = "no"; };
+  };
+  users.users.desu = { isNormalUser = true; extraGroups = [ "wheel" ]; };
+  # local.nix must supply an SSH key and hashedPasswordFile for sudo.
+  environment.systemPackages = with pkgs; [ git curl jq restic ];
+  virtualisation.podman.enable = true;
+  virtualisation.docker = {
+    enable = true;
+    autoPrune.enable = false; # Never prune application state automatically.
+    daemon.settings = { log-driver = "json-file"; log-opts = { max-size = "10m"; max-file = "3"; }; };
+  };
+  system.stateVersion = "26.05";
+}
