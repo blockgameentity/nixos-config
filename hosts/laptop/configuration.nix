@@ -49,10 +49,10 @@
   # (hardware-configuration.nix), and zswap compresses pages in front of it.
   desu.memory.swapFile = null;
 
-  # Hybrid graphics: the AMD iGPU drives the desktop, the RTX 3060 Mobile is used
-  # on demand via PRIME render offload (`nvidia-offload <program>`). Both bus IDs
-  # are machine-specific: read them with `lspci | grep -E "VGA|3D"` and replace
-  # the placeholders - wrong IDs give a black screen, not a build failure.
+  # Hybrid graphics: the Radeon Vega iGPU (05:00.0, rev c6) drives the panel, the
+  # RTX 3060 Mobile Max-Q (01:00.0, rev a1) is used on demand via PRIME render
+  # offload (`nvidia-offload <program>`). Both bus IDs are from `lspci` on this
+  # machine; a wrong ID gives a black screen, not a build failure.
   services.xserver.videoDrivers = [ "nvidia" ];
   hardware.nvidia = {
     modesetting.enable = true;
@@ -62,8 +62,8 @@
     prime = {
       offload.enable = true;
       offload.enableOffloadCmd = true;
-      amdgpuBusId = "PCI:5:0:0"; # PLACEHOLDER: AMD iGPU bus ID
-      nvidiaBusId = "PCI:1:0:0"; # PLACEHOLDER: RTX 3060 Mobile bus ID
+      amdgpuBusId = "PCI:5:0:0";
+      nvidiaBusId = "PCI:1:0:0";
     };
   };
 
