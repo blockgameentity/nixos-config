@@ -27,7 +27,7 @@ in {
     };
     autoUpgrade.flake = lib.mkOption {
       type = lib.types.str;
-      default = "github:blockgameentity/nixos-server";
+      default = "github:blockgameentity/nixos-config";
     };
     autoUpgrade.dates = lib.mkOption {
       type = lib.types.str;

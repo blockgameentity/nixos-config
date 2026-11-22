@@ -1,12 +1,35 @@
-# desu.re NixOS migration
+# desu.re NixOS configuration
 
-NixOS host configuration for `chat.desu.re`, `overleaf.desu.re`, and `ttml.desu.re`.
-This is a migration scaffold, **not a tested production deployment**. `PLACEHOLDER` markers
-in `hosts/desu` must be replaced first; `scripts/preflight.py` enforces that.
+NixOS host configurations: `desu` serves `chat.desu.re`, `overleaf.desu.re` and
+`ttml.desu.re`; `laptop` and `desktop` are skeletons for future machines. This is a
+migration scaffold, **not a tested production deployment**. `PLACEHOLDER` markers in
+`hosts/desu` must be replaced first; `scripts/preflight.py` enforces that.
 No server data or secret values belong in this repository.
 
 ## Layout and choices
 
+- `hosts/<name>`: one machine per directory. `hosts/README.md` documents adding a host;
+  `flake.nix` builds each one through `mkHost` (shared baseline + generated hardware +
+  host policy). `hosts/laptop` and `hosts/desktop` stay commented out in the flake until
+  their `hardware-configuration.nix` exists.
+- `modules/base.nix`: host-independent baseline every NixOS host imports through `mkHost`:
+  flakes, `nh` with `NH_FLAKE=/etc/nixos`, fish as the login shell, and Home Manager
+  wired to the universal home profile. So `sudo nh os switch` works from any directory.
+- Nixpkgs channels: `desu` runs `nixos-26.05` (stable, `channel = "stable"`), while the
+  laptop, desktop and disposable CI runners use `nixos-unstable` (the `mkHost` default).
+  Home Manager is pinned per channel too (`master` vs `release-26.05`), because an HM
+  release only supports its matching nixpkgs release.
+- `modules/cachyos.nix` (laptop + desktop only): Chaotic-Nyx (`nyxpkgs-unstable`) with
+  `boot.kernelPackages = pkgs.linuxPackages_cachyos` - the CachyOS kernel with kconfig
+  parity to upstream (LTO + BORE), plus its binary cache. Other variants are listed in
+  the module (`cachyos-lts`, `-hardened`, `-rc`, `-server`) as are the matching
+  `nvidia_cachyos`/`zfs_cachyos` packages. The module pulls the unstable-flavoured
+  `chaotic.nixosModules.default`, so the stable server must not import it - and does not.
+- `home/shared.nix`: the universal user profile (fish, starship, zoxide, eza/bat/dust,
+  pfetch, git, `$EDITOR`) imported by `modules/base.nix` on every host, server included.
+  `home/files/` holds the dotfiles kept verbatim (starship.toml, ghostty shader).
+- `modules/graphical.nix`: what only machines with a display get - `home/graphical.nix`
+  (ghostty + shader) and a Nerd Font as the default monospace. The server never imports it.
 - `hosts/desu`: x86_64 host, UEFI boot assumption, OAuth-based Tailscale SSH, local settings.
 - `modules/edge.nix`: Caddy, Cloudflare-only IPv4/IPv6 web ingress, Origin CA TLS.
 - `modules/apps.nix`: rootful Podman OCI containers for Overleaf/TTML, systemd-managed
@@ -58,11 +81,89 @@ set application image references, and replace the `PLACEHOLDER` markers. Set tim
 networking to match your actual provider. Stage new files before flake evaluation.
 
 ```console
+# Keep the checkout where NH_FLAKE points (modules/base.nix): /etc/nixos.
+git clone https://github.com/blockgameentity/nixos-config.git /etc/nixos
+cd /etc/nixos
 git add hosts/desu
 nix flake check
 nix build .#nixosConfigurations.desu.config.system.build.toplevel
 sudo nixos-install --flake .#desu
 ```
+
+After first boot, rebuilds use `nh` (installed by `modules/base.nix`):
+
+```console
+sudo nh os switch           # build and activate /etc/nixos for this host
+sudo nh os boot             # same, but only for the next boot
+nh search <query>           # package search; queries search.nixos.org, not nix-index
+```
+
+`nh` derives the host from the flake, so `nh os switch` activates whichever
+`nixosConfigurations.<hostname>` matches the machine. Pass a path explicitly
+(`nh os switch /some/other/checkout`) or override `NH_OS_FLAKE` per command.
+
+## Home profile (shell, prompt, terminal)
+
+Home Manager is a NixOS module (`modules/base.nix`), so the same user profile is
+built for every host from one place:
+
+| Profile | File | Hosts |
+| --- | --- | --- |
+| universal | `home/shared.nix` | server, laptop, desktop |
+| graphical | `home/graphical.nix` (via `modules/graphical.nix`) | laptop, desktop only |
+| desktop | `home/desktop.nix` (via `modules/desktop.nix`) | desktop only (CUDA, NVIDIA, alcom, Unity Hub) |
+
+The universal profile carries fish (login shell), `starship` with the original
+`~/.config/starship.toml`, `zoxide`, `fzf`, eza/bat/dust aliases, `pfetch-rs`
+instead of catnap, `helix` (`hx`, `$EDITOR`/`$VISUAL`, Gruvbox Dark Hard) as the
+only terminal editor, `delta` as the git pager, `lazygit` (`lg`), `direnv` with
+`nix-direnv`, `btop`, git identity plus the `gh auth` credential helper, and the
+`cargo`/`ruff`/`bun`/`uv`/`go` toolchains.
+
+Cargo is configured for speed on every host (`~/.cargo/config.toml`):
+`sccache` as `rustc-wrapper` and `mold` as the linker (`-fuse-ld=mold`).
+
+SSH aliases live in the same profile (`programs.ssh.settings`): `github`/`gist`
+map to `git@` endpoints, and `Host *` sets keepalives, agent key loading and
+ControlMaster multiplexing. No key material or machine addresses are here, and
+`~/.ssh/config` is generated - an existing file is moved to `config.hm-backup`.
+
+CLI tools shared by every host: `act pandoc adb scrcpy croc dog imagemagick
+ipinfo iperf3 fend yazi yt-dlp typst zstd kondo ffmpeg radare2` plus the basics
+(`eza bat dust ripgrep fd jq pfetch-rs`). Tailscale is enabled by
+`modules/base.nix` for every host.
+
+The graphical profile adds ghostty (Gruvbox Dark Hard, bar cursor, `cursor_warp`
+shader), JetBrains Mono in its Nerd Font variant as the default monospace,
+Noto Color Emoji, and the both-machines applications: firefox, libreoffice,
+filezilla, obsidian, bitwarden, celluloid, imhex, signal, insomnia, qbittorrent,
+prismlauncher, ayugram, obs-studio, ktailctl (Tailscale GUI), kalker,
+qalculate-gtk and zed. Steam and the sched_ext scheduler live in
+`modules/graphical.nix` because both are NixOS services rather than packages:
+`programs.steam.enable`, and `services.scx-loader` with `scx_bpfland` as the
+default scheduler. `czkawka` is graphical-only even though it also ships
+`czkawka_cli`, so the server does not pull a GTK closure for it.
+
+On the laptop, Steam and Obsidian are the only unfree packages and are allowed
+through `nixpkgs.config.allowUnfreePredicate` for those two names.
+
+The desktop adds `modules/desktop.nix` / `home/desktop.nix` on top: CUDA
+(`cudaSupport = true`, `cudatoolkit`), the NVIDIA driver (open kernel modules,
+modesetting), and alcom + Unity Hub. Because CUDA ships a family of EULA
+packages (cccl, cuDNN, cuBLAS, NCCL) whose names move between releases, the
+desktop allows unfree packages outright instead of enumerating them.
+**Building the desktop configuration downloads several GB of CUDA closure.**
+
+The server imports `modules/base.nix` only: it gets the shell, prompt, editor,
+git, toolchains and CLI tools, but no terminal emulator, font, GUI app or
+gaming/desktop package. It runs `nixos-26.05` (stable), everything else runs
+`nixos-unstable`.
+
+Dotfiles that are easier to read as-is (the starship TOML, the ghostty shader)
+are copied verbatim under `home/files/` and referenced with `.source` instead of
+being translated into a Nix attrset. To adopt another dotfile, copy it into
+`home/files/` and add an `xdg.configFile` entry; a pre-existing file at the same
+path is moved to `<name>.hm-backup` on first activation.
 
 Provision runtime secrets under `/mnt/var/lib/secrets` before first boot, or under
 `/var/lib/secrets` on the installed host. Root-only files, not Nix paths/strings containing
@@ -170,7 +271,8 @@ before disconnecting rescue access. CI already blocks 100.64.0.0/10.
 
 ## Acceptance tests / backups
 
-- `nixos-rebuild build --flake .#desu`, then test in a restore VM before switching production.
+- `nixos-rebuild build --flake .#desu` (or `sudo nh os test`, then `sudo nh os switch`), then
+  test in a restore VM before switching production.
 - `systemctl --failed`, `journalctl -u fluxer -u caddy`, container health and Mongo primary.
 - Off-network direct origin HTTP/HTTPS (IPv4 AND IPv6) denied; Cloudflare URLs work.
 - WebSocket chat/gateway, upload/download, voice, Overleaf editing and PDF compilation,

@@ -1,13 +1,33 @@
 {
-  description = "desu.re NixOS server";
+  description = "desu.re NixOS configuration: server, laptop and desktop hosts";
   inputs = {
+    # unstable: laptop, desktop and the disposable CI runners.
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # stable: the always-on server (desu). Track the NixOS release branch, not a
+    # tag, so it keeps receiving fixes; bump it deliberately at a release.
+    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-26.05";
     nix-darwin = {
       url = "github:nix-darwin/nix-darwin/master";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Home Manager supplies the universal user profile (shell, prompt, git) for
+    # every NixOS host; see modules/base.nix. It is pinned per channel because a
+    # Home Manager release only supports its matching nixpkgs release.
+    home-manager = {
+      url = "github:nix-community/home-manager/master";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    home-manager-stable = {
+      url = "github:nix-community/home-manager/release-26.05";
+      inputs.nixpkgs.follows = "nixpkgs-stable";
+    };
+    # Chaotic-Nyx: CachyOS kernels and packages. The branch is the unstable one
+    # (nyxpkgs-unstable), and its `nixosModules.default` is the unstable flavour,
+    # so only hosts on the unstable channel import modules/cachyos.nix.
+    chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
     # Application flakes keep their own service contract; the server does not
-    # duplicate container/env/volume definitions.
+    # duplicate container/env/volume definitions. They build against unstable
+    # regardless of which channel the host that imports their module runs.
     ttml = {
       url = "github:blockgameentity/ttml-fixer";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -17,7 +37,55 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
-  outputs = { self, nixpkgs, nix-darwin, ttml, spar, ... }: {
+  outputs = {
+    self,
+    nixpkgs,
+    nixpkgs-stable,
+    nix-darwin,
+    home-manager,
+    home-manager-stable,
+    chaotic,
+    ttml,
+    spar,
+    ...
+  }: let
+    # A channel pairs a nixpkgs with the Home Manager that supports it.
+    channels = {
+      unstable = {
+        pkgs = nixpkgs;
+        hm = home-manager;
+      };
+      stable = {
+        pkgs = nixpkgs-stable;
+        hm = home-manager-stable;
+      };
+    };
+    # One directory per machine under ./hosts. mkHost wires in the shared
+    # baseline, the generated hardware description and the host's own choices,
+    # so adding a machine is a single line in nixosConfigurations below.
+    mkHost = {
+      hostName,
+      channel ? "unstable",
+      system ? "x86_64-linux",
+      modules ? [ ],
+    }: let
+      ch = channels.${channel};
+    in
+      ch.pkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { inherit ttml spar chaotic; };
+        modules = [
+          ./modules/base.nix
+          ch.hm.nixosModules.home-manager
+          ./hosts/${hostName}/hardware-configuration.nix
+          ./hosts/${hostName}/configuration.nix
+        ] ++ modules;
+      };
+  in {
+    # mkHost is exposed so a host can be evaluated ad hoc, e.g.
+    #   nix eval --impure --expr '(builtins.getFlake "./.").lib.mkHost { hostName = "laptop"; }'
+    lib.mkHost = mkHost;
+
     nixosConfigurations.ci-guest = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [ ./ci/guest.nix ];
@@ -27,15 +95,21 @@
       modules = [ ./hosts/mac/configuration.nix ];
     };
     nixosModules.disposable-runners = import ./modules/ci-runners.nix;
-    nixosConfigurations.desu = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      specialArgs = { inherit ttml spar; };
+    nixosConfigurations.desu = mkHost {
+      hostName = "desu";
+      # Long-lived server: stable channel. Laptop/desktop stay on the default
+      # (unstable).
+      channel = "stable";
       modules = [
-        ./hosts/desu/configuration.nix
         ./modules/ci-runners.nix
         { services.disposableRunners.image = "${self.packages.x86_64-linux.ci-guest}/ci-guest.qcow2"; }
       ];
     };
+    # Each skeleton needs its own hosts/<name>/hardware-configuration.nix, which
+    # only `nixos-generate-config` on that machine can produce (see
+    # hosts/README.md). Uncomment once the file exists:
+    # laptop = mkHost { hostName = "laptop"; };
+    # desktop = mkHost { hostName = "desktop"; };
 
     # Cheap CI gates. The installation assertions are intentionally disabled
     # here: they guard real secrets/hardware, not the shape of the config.

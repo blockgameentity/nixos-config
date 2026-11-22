@@ -1,6 +1,8 @@
 { pkgs, lib, ttml, spar, ... }: {
   imports = [
-    ./hardware-configuration.nix
+    # ./hardware-configuration.nix is imported by mkHost in flake.nix, together
+    # with ../../modules/base.nix (flakes + nh). Keep this file to what is true
+    # about this machine only.
     ./local.nix
     ../../modules/edge.nix
     ../../modules/apps.nix
@@ -14,12 +16,11 @@
   # Tailscale SSH handles OAuth; no OpenSSH daemon or SSH keys required.
   networking.firewall.interfaces.tailscale0.allowedTCPPorts = [ 22 ];
   time.timeZone = "Europe/Copenhagen";
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
+  # Tailscale is enabled by modules/base.nix; the server adds its headless
+  # enrollment key and --ssh (that is the only SSH path - no OpenSSH daemon).
   services.tailscale = {
-    enable = true;
-    openFirewall = true;
     authKeyFile = "/var/lib/secrets/tailscale-auth-key";
     authKeyParameters = { ephemeral = false; preauthorized = true; };
     extraUpFlags = [ "--ssh" ];
