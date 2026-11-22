@@ -25,6 +25,11 @@ in {
     overleaf = lib.mkOption { type = lib.types.str; description = "Existing Overleaf image, preferably pinned by digest"; };
     ttml = lib.mkOption { type = lib.types.str; description = "Built ttml-fixer image (runs as uid 10001) accessible to rootful Podman"; };
   };
+  options.desu.ttmlCookies = lib.mkOption {
+    type = lib.types.nullOr lib.types.path;
+    default = null;
+    description = "Optional Netscape cookie export; mounted read-only into the worker only.";
+  };
   config = {
     systemd.tmpfiles.rules = [
       "d /srv/overleaf 0750 root root -"
@@ -83,12 +88,13 @@ in {
           image = cfg.images.ttml;
           cmd = [ "python" "-m" "ttml_fixer.worker" ];
           environmentFiles = [ "/var/lib/secrets/ttml.env" ];
-          environment = ttmlEnv // {
+          environment = ttmlEnv // lib.optionalAttrs (cfg.ttmlCookies != null) {
             TTML_FIXER_YTDLP_COOKIE_FILE = "/run/secrets/youtube-cookies.txt";
           };
           volumes = ttmlState ++ ttmlResults
-            ++ [ "/var/cache/ttml-fixer/models:/var/cache/ttml-fixer/models"
-                "/var/lib/secrets/youtube-cookies.txt:/run/secrets/youtube-cookies.txt:ro" ];
+            ++ [ "/var/cache/ttml-fixer/models:/var/cache/ttml-fixer/models" ]
+            ++ lib.optional (cfg.ttmlCookies != null)
+              "${toString cfg.ttmlCookies}:/run/secrets/youtube-cookies.txt:ro";
           extraOptions = [ "--init" ];
         };
       };

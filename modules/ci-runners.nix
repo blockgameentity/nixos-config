@@ -79,6 +79,7 @@ in {
       requires = [ "ci-network.service" ];
       bindsTo = [ "ci-network.service" ];
       after = [ "ci-network.service" "network-online.target" ];
+      wants = [ "network-online.target" ];
       serviceConfig = {
         User = "ci-vm";
         Group = "ci-vm";
