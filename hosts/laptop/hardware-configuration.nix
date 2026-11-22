@@ -26,8 +26,9 @@
   # which is what makes the LVs below addressable at boot.
   services.lvm.enable = true;
 
-  # size must be >= RAM + a couple of GiB, otherwise `systemctl hibernate`
-  # fails at runtime with "Not enough swap space".
+  # Must be >= RAM + a couple of GiB, otherwise `systemctl hibernate` fails at
+  # runtime with "Not enough swap space". This machine reports 13 GiB usable, so
+  # the 32 GiB LV created in the README block is comfortable.
   swapDevices = [ { device = "/dev/vg0/swap"; } ];
   boot.resumeDevice = "/dev/vg0/swap";
 
@@ -88,11 +89,11 @@
     options = [ "fmask=0077" "dmask=0077" ];
   };
 
+  # From lspci: SK hynix NVMe (nvme), AMD FCH SATA (ahci), Renoir/Cezanne USB
+  # (xhci_pci); sd_mod and usbhid for storage and rescue input.
   boot.initrd.availableKernelModules = [ "xhci_pci" "ahci" "nvme" "usbhid" "sd_mod" ];
 
-  # Keep the line matching `grep vendor_id /proc/cpuinfo` on the laptop:
-  # GenuineIntel -> intel, AuthenticAMD -> amd. AMD is the default here because
-  # the machine is a Ryzen + RTX 3060 hybrid; swap the comments if that is wrong.
+  # Confirmed on the machine: `vendor_id: AuthenticAMD` (Ryzen, Radeon iGPU at
+  # 05:00.0, RTX 3060 Mobile dGPU, MT7921 wifi).
   hardware.cpu.amd.updateMicrocode = lib.mkDefault true;
-  # hardware.cpu.intel.updateMicrocode = lib.mkDefault true;
 }

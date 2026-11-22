@@ -206,6 +206,16 @@ swapon /dev/vg0/swap               # so nixos-generate-config sees it
 reveals which blocks are free to someone reading the raw device (not their contents); on a
 laptop that is the usual tradeoff.
 
+Measured on the actual machine: Ryzen (`AuthenticAMD` -> AMD microcode), Radeon iGPU at
+`05:00.0`, RTX 3060 Mobile, MT7921 wifi, MediaTek Bluetooth, **13 GiB usable RAM** (so the
+32 GiB swap LV clears the RAM + 2 GiB rule for hibernation). The existing 4 GiB ESP is reused -
+`mkfs.vfat -F32 -n boot /dev/nvme0n1p1` relabels it for the by-label mount - and the current LUKS
+partition is exactly where the new one goes; only the LVM layer inside it is new.
+
+`hosts/laptop/configuration.nix` also enables the hardware that was missing entirely:
+NetworkManager (`mt7921e` wifi, `r8169` ethernet), Bluetooth, libinput, upower and
+power-profiles-daemon (not TLP - the two conflict).
+
 #### Why these boundaries
 
 `@nix` keeps the store out of a root rollback, `@srv` holds mutable service data (`/srv/overleaf`,

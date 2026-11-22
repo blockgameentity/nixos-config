@@ -14,7 +14,18 @@
   ];
 
   networking.hostName = "laptop";
-  networking.useDHCP = true;
+  # NetworkManager owns DHCP and wifi; its module forces networking.useDHCP off
+  # (setting it true here is a conflicting definition, not a preference).
+  networking.networkmanager.enable = true;
+
+  # Real hardware on this machine: MediaTek Bluetooth (USB 0489:e0cd), touchpad
+  # and keyboard through libinput, battery/AC reporting, and a power profile
+  # switcher that works with any Wayland session (power-profiles-daemon rather
+  # than TLP - the two conflict, and TLP adds nothing on a machine this modern).
+  hardware.bluetooth.enable = true;
+  services.libinput.enable = true;
+  services.upower.enable = true;
+  services.power-profiles-daemon.enable = true;
   time.timeZone = "Europe/Copenhagen";
   users.users.desu = {
     isNormalUser = true;
