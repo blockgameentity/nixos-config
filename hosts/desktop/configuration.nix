@@ -26,7 +26,27 @@
   };
 
   # Tailscale itself is enabled by modules/base.nix; only host flags belong here.
-  services.tailscale.extraUpFlags = [ "--ssh" ];
+  # No `--ssh`: Tailscale SSH intercepts port 22 on the tailnet and authenticates
+  # by tailnet identity, which would bypass the sshd + password you actually use.
+  services.tailscale.extraUpFlags = [ ];
+
+  # Remote access over the tailnet only, with a normal password login:
+  # sshd is enabled, nothing opens 22 on the LAN or WAN, and the only interface
+  # allowed through the firewall is tailscale0.
+  #
+  # The account needs a password hash for this to be usable. Set
+  # `users.users.desu.hashedPasswordFile = "/var/lib/secrets/desu-password-hash";`
+  # the same way hosts/desu/local.nix does - without it the account is locked and
+  # password logins fail even though sshd accepts them.
+  services.openssh = {
+    enable = true;
+    settings = {
+      PasswordAuthentication = true;
+      KbdInteractiveAuthentication = false;
+      PermitRootLogin = "no";
+    };
+  };
+  networking.firewall.interfaces.tailscale0.allowedTCPPorts = [ 22 ];
   # Limine instead of systemd-boot; kernels are read straight from /boot.
   boot.loader.limine = {
     enable = true;

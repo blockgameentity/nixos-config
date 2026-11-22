@@ -401,6 +401,28 @@ decided. `services.displayManager.autoLogin` and the Wayland variables above are
 place so that whichever option lands inherits autologin and the Danish layout instead of
 re-introducing a second password prompt.
 
+## Remote access
+
+The workstations run `sshd` with password authentication, reachable **only** over `tailscale0`:
+`networking.firewall.interfaces.tailscale0.allowedTCPPorts = [ 22 ]`, nothing opened on the LAN
+or WAN. Tailscale SSH (`tailscale up --ssh`) is removed there on purpose - it intercepts port 22
+on the tailnet and authenticates by tailnet identity, which would bypass sshd and the password
+actually in use.
+
+The account needs a password hash for this to work at all:
+`users.users.desu.hashedPasswordFile = "/var/lib/secrets/desu-password-hash";` (the pattern
+`hosts/desu/local.nix` uses). Without it the account is locked and password logins fail even
+though sshd accepts them.
+
+The server still uses the opposite model (OpenSSH disabled, Tailscale SSH with `--ssh`); that is
+an open decision recorded in `docs/remaining-work.md`.
+
+## Audio
+
+`modules/graphical.nix` enables PipeWire with the ALSA and PulseAudio compatibility layers
+(`alsa.support32Bit` for Steam titles) plus `security.rtkit` for realtime scheduling. The server
+imports neither, so it stays silent and minimal.
+
 ## Home profile (shell, prompt, terminal)
 
 Home Manager is a NixOS module (`modules/base.nix`), so the same user profile is

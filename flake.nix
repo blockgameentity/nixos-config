@@ -116,9 +116,18 @@
     # here: they guard real secrets/hardware, not the shape of the config.
     checks.x86_64-linux = let
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
-      evaluated = (self.nixosConfigurations.desu.extendModules {
-        modules = [ ({ lib, ... }: { assertions = lib.mkForce [ ]; }) ];
-      }).config;
+      hosts = [ "desu" "desktop" "laptop" ];
+      # Evaluate every host, not just the server: a laptop-only change used to
+      # be caught by nothing but the slower `nix flake check` path.
+      evaluated =
+        map
+          (name: {
+            inherit name;
+            drvPath = (self.nixosConfigurations.${name}.extendModules {
+              modules = [ ({ lib, ... }: { assertions = lib.mkForce [ ]; }) ];
+            }).config.system.build.toplevel.drvPath;
+          })
+          hosts;
     in {
       preflight-tests = pkgs.runCommand "preflight-tests" {
         nativeBuildInputs = [ pkgs.python3 ];
@@ -137,9 +146,11 @@
         touch $out
       '';
       config-eval = pkgs.runCommand "nixos-config-eval" { } ''
-        # Discard the string context: this check proves the configuration
+        # Discard the string context: this check proves each configuration
         # evaluates, without pulling the whole NixOS system into its closure.
-        echo ${pkgs.lib.escapeShellArg (builtins.unsafeDiscardStringContext evaluated.system.build.toplevel.drvPath)} > $out
+        cat > $out <<EOF
+        ${pkgs.lib.concatMapStringsSep "\n" (h: "${h.name}: ${builtins.unsafeDiscardStringContext h.drvPath}") evaluated}
+        EOF
       '';
     };
   };

@@ -53,6 +53,17 @@
   # Mesa/Vulkan stack used by steam, obs-studio and the compositor.
   hardware.graphics.enable = true;
 
+  # Audio. PipeWire replaces PulseAudio entirely; ALSA is kept for apps that talk
+  # to it directly and for 32-bit Steam titles, and rtkit gives the audio server
+  # the realtime scheduling it needs to avoid xruns.
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    alsa.support32Bit = true;
+    pulse.enable = true;
+  };
+  security.rtkit.enable = true;
+
   # Steam is a system service (32-bit libs, its own firewall/udev setup), not a
   # package to drop into home.packages.
   programs.steam.enable = true;

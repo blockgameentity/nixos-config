@@ -34,7 +34,27 @@
 
   # Typical laptop baseline; adjust to the actual hardware.
   # Tailscale itself is enabled by modules/base.nix; only host flags belong here.
-  services.tailscale.extraUpFlags = [ "--ssh" ];
+  # No `--ssh`: Tailscale SSH intercepts port 22 on the tailnet and authenticates
+  # by tailnet identity, which would bypass the sshd + password you actually use.
+  services.tailscale.extraUpFlags = [ ];
+
+  # Password SSH over the tailnet only (sshd enabled, port 22 opened on nothing
+  # but tailscale0).
+  # The account also needs a password hash - see the note in
+  # hosts/desktop/configuration.nix.
+  services.openssh = {
+    enable = true;
+    settings = {
+      PasswordAuthentication = true;
+      KbdInteractiveAuthentication = false;
+      PermitRootLogin = "no";
+    };
+  };
+  networking.firewall.interfaces.tailscale0.allowedTCPPorts = [ 22 ];
+
+  # Firmware updates (BIOS/EC via LVFS and the NVMe/SSD firmware) - the laptop is
+  # the machine where those actually matter.
+  services.fwupd.enable = true;
   # Limine instead of systemd-boot; kernels are read straight from /boot.
   boot.loader.limine = {
     enable = true;
