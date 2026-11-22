@@ -7,7 +7,7 @@ No server data or secret values belong in this repository.
 
 ## Layout and choices
 
-- `hosts/desu`: x86_64 host, UEFI boot assumption, SSH keys only, installation-specific settings.
+- `hosts/desu`: x86_64 host, UEFI boot assumption, OAuth-based Tailscale SSH, local settings.
 - `modules/edge.nix`: Caddy, Cloudflare-only IPv4/IPv6 web ingress, Origin CA TLS.
 - `modules/apps.nix`: rootful Podman OCI containers for Overleaf/TTML, systemd-managed
   Docker Compose for Fluxer. Fluxer's existing health checks and initialization dependency
@@ -47,7 +47,7 @@ with digests. Do not combine OS migration with database or application upgrades.
 Boot the NixOS installer, partition/mount deliberately (no destructive disk script is included).
 This scaffold assumes UEFI/systemd-boot; adapt it if the server uses legacy BIOS. Generate
 `hardware-configuration.nix` using `nixos-generate-config --root /mnt` and replace the placeholder.
-Edit `local.nix`: add your real SSH public key, provision the password-hash file for sudo,
+Edit `local.nix`: provision the password-hash file for local console/sudo authentication,
 set application image references, and remove the local assertion only after reviewing it.
 Set timezone/networking to match your actual provider. Stage new files before flake evaluation.
 
@@ -74,8 +74,8 @@ secret values. Missing secrets intentionally make affected services fail closed.
   files root:caddy 0640. The parent `/var/lib/secrets` is root:caddy 0710 (traverse only
   for Caddy). All OTHER secret files must be root:root 0600; Caddy must not read them.
 - `tailscale-auth-key`: one-off Tailscale auth key for a persistent, preauthorized server
-  node, root:root 0600. Use appropriate tailnet ACL/tagging. Enrollment preserves your
-  existing OpenSSH key workflow; SSH is allowed only on tailscale0, not the public Internet.
+  node, root:root 0600. Use appropriate tailnet ACL/tagging and permit Tailscale SSH to
+  the `desu` account. Tailscale `--ssh` handles OAuth; OpenSSH is completely disabled.
 - `ci-token`: repository-scoped fine-grained GitHub token with Administration:write for
   runner management, root-readable only. `local.nix` currently enables ExamWatcher/desktop.
   Replace `blockedIPv4` with the server's real origin IP(s) before deploying. Read `ci/README.md`.
@@ -123,10 +123,11 @@ Shared Cloudflare AOP certificates alone are not zone-specific authentication.
 Web backends bind only loopback; databases have no published ports. Docker publication can
 bypass host INPUT firewall rules: never change these to 0.0.0.0. Verify actual exposure remotely.
 Fluxer voice requires direct TCP 7881 / UDP 7882. These are deliberately public, not Cloudflare-only.
-Check LiveKit's advertised external IP, NAT forwarding and real two-client calls. SSH remains
-public key-only on 22 but is allowed only on tailscale0. Provision the auth key before first
-boot for headless enrollment; public SSH is not available as a fallback. Confirm tailnet SSH
-from a second device before disconnecting rescue access. CI already blocks 100.64.0.0/10.
+Check LiveKit's advertised external IP, NAT forwarding and real two-client calls. Tailscale
+SSH uses OAuth and is allowed only on tailscale0; no OpenSSH daemon or SSH password login
+is enabled. The local password is only for console/sudo authentication. Provision the auth
+key before first boot for headless enrollment. Confirm Tailscale SSH from a second device
+before disconnecting rescue access. CI already blocks 100.64.0.0/10.
 
 ## Acceptance tests / backups
 

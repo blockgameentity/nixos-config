@@ -64,7 +64,6 @@ def main():
     hardware = (root / 'hosts/desu/hardware-configuration.nix').read_text()
     checks.require('assertion = false' not in local, 'Remove the local installation gate after filling access/image settings')
     checks.require('assertion = false' not in hardware, 'Replace hardware-configuration.nix with nixos-generate-config output')
-    checks.require('openssh.authorizedKeys.keys = [ ];' not in local, 'Supply at least one SSH public key')
     checks.require(':latest' not in local and ':migration' not in local, 'Pin application images by digest')
     for value in args.origin:
         checks.require(f'"{value}/32"' in local, f'Add actual origin {value}/32 to disposableRunners.blockedIPv4')

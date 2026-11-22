@@ -1,7 +1,6 @@
 # Edit before deploying. Never put secret VALUES in this file.
 { ... }: {
-  assertions = [{ assertion = false; message = "Configure local.nix: SSH access, sudo password file, and application image digests; then remove this assertion."; }];
-  users.users.desu.openssh.authorizedKeys.keys = [ ];
+  assertions = [{ assertion = false; message = "Configure local.nix: local sudo password file and application image digests; then remove this assertion."; }];
   # Set tokenFile to the repository-specific runner-management token at deployment.
   services.disposableRunners = {
     # Review the contributor-job authorization and token requirements in ci/README.md.

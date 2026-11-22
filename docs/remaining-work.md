@@ -7,7 +7,7 @@
   HTTP works while SMTP, host/router, private-LAN and IPv6 access are blocked.
 - All ExamWatcher API workflows inspected. Their persistent cache assumptions are recorded;
   they remain on the trusted `ew-ci` runner, not redirected to untrusted disposable VMs.
-- `scripts/preflight.py` checks required files, secret permissions, SSH/image/origin settings
+- `scripts/preflight.py` checks required files, secret permissions, image/origin settings
   and installation placeholders. Its unit tests cover Caddy's special group-read exception.
 - ExamWatcher desktop `.github/ci/setup-linux-arm64-cross.sh` now creates a separate ARM64
   Ubuntu WebKit/GTK sysroot and tests a real AArch64 linked executable. The ARM64 workflow
@@ -19,9 +19,10 @@
 1. Before wiping: inventory the live server and make verified off-host backups/restores.
    Only the live system can reveal actual volume names, image digests and remaining services.
 2. Generate target hardware configuration with `nixos-generate-config`; choose partitioning/UEFI.
-3. Supply SSH public key, password hash, actual public origin IP, Cloudflare Origin CA
+3. Supply local console/sudo password hash, actual public origin IP, Cloudflare Origin CA
    certificate/key, original Fluxer/TTML environment and cookies, and pinned image digests.
-   Supply a one-off Tailscale auth key for headless enrollment; SSH is tailscale0-only.
+   Supply a one-off Tailscale auth key for headless enrollment. Tailscale SSH uses OAuth;
+   OpenSSH is disabled and the local password is not accepted for SSH.
    Confirm SSH from another tailnet device before removing rescue-console access.
 4. Build/push/load the TTML image on a machine with its full build context. Push the SPAR
    flake to its real repository, then supply the image and original data/config.
