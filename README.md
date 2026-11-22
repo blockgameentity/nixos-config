@@ -134,10 +134,15 @@ mode has no active token or invalid CORS/proxy settings. Cookie-based YouTube ac
 optional and mounted read-only into the worker only; without it downloads still work for
 non-authenticated requests when `TTML_FIXER_ENABLE_DOWNLOAD` is set. No GPU is configured.
 
+MongoDB and Redis are now `mongo:7.0` and `redis:7.4-alpine` (`desu.images.mongo` /
+`desu.images.redis`) instead of upstream's 6.0/6.2. Overleaf's node driver (mongodb 6.12)
+and ioredis 4.27 support them, and the upgrade paths were tested with real containers —
+see `docs/overleaf-upgrade.md` for the FCV step, the dump-first rule, and the fact that
+MongoDB 7.0 has **no in-place downgrade**.
+
 The existing Overleaf image enables shell escape: keep registration restricted and treat
 LaTeX compilation as untrusted execution inside the application container. This setup is
-not a safe public multi-tenant compilation sandbox. Mongo 6 and Redis 6 are retained only
-for migration compatibility; plan supported-version upgrades separately after backup testing.
+not a safe public multi-tenant compilation sandbox.
 
 ## Cloudflare / security
 

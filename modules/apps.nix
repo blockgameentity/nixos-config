@@ -11,6 +11,20 @@ in {
       default = null;
       description = "Built spar-tilbuds-bot image; the service is disabled while null.";
     };
+    mongo = lib.mkOption {
+      type = lib.types.str;
+      default = "mongo:7.0";
+      description = ''
+        Overleaf's MongoDB. Upstream still pins 6.0; 7.0 is a supported single-major
+        upgrade for the node driver (mongodb 6.x) Overleaf uses. Existing 6.0 data
+        files start on 7.0 but keep FCV 6.0 until setFeatureCompatibilityVersion.
+      '';
+    };
+    redis = lib.mkOption {
+      type = lib.types.str;
+      default = "redis:7.4-alpine";
+      description = "Overleaf's Redis (cache only; ioredis 4.x is compatible with 7.x).";
+    };
   };
   options.desu.ttmlCookies = lib.mkOption {
     type = lib.types.nullOr lib.types.path;
@@ -29,13 +43,13 @@ in {
       backend = "podman";
       containers = {
         overleaf-mongo = {
-          image = "mongo:6.0";
+          image = cfg.images.mongo;
           cmd = [ "--replSet" "overleaf" ];
           volumes = [ "/srv/overleaf/mongo:/data/db" ];
           extraOptions = [ "--network=overleaf" "--network-alias=mongo" ];
         };
         overleaf-redis = {
-          image = "redis:6.2";
+          image = cfg.images.redis;
           volumes = [ "/srv/overleaf/redis:/data" ];
           extraOptions = [ "--network=overleaf" "--network-alias=redis" ];
         };
