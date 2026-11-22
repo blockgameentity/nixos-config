@@ -490,8 +490,9 @@ Provision runtime secrets under `/mnt/var/lib/secrets` before first boot, or und
 `/var/lib/secrets` on the installed host. Root-only files, not Nix paths/strings containing
 secret values. Missing secrets intentionally make affected services fail closed.
 
-The storage/reuse/rotation policy for all of this is in `docs/secrets.md`; the passwords
-do not share a value and the ones that are never typed do not live on any machine.
+The storage/reuse/rotation policy for all of this is in `docs/secrets.md`. One strong passphrase is
+shared by the Bitwarden master, LUKS and restic (a documented, accepted tradeoff); anything never
+typed by hand is a random string and lives only in the vault.
 
 `desu-password-hash` is required on **every** host, not just the server: all three set
 `users.users.desu.hashedPasswordFile`, and `sudo` has nothing to check without it (the

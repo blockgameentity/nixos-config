@@ -57,6 +57,18 @@
   # Firmware updates (BIOS/EC via LVFS and the NVMe/SSD firmware) - the laptop is
   # the machine where those actually matter.
   services.fwupd.enable = true;
+
+  # Hibernate instead of suspend. `systemctl suspend`, the lid and the suspend key
+  # all end in hibernation, so the LUKS key leaves RAM: a laptop stolen while
+  # "asleep" needs the disk passphrase to come back, not just a lock-screen
+  # password. Resume path: cryptroot unlocked -> vg0 activated -> image read from
+  # /dev/vg0/swap (boot.resumeDevice in hardware-configuration.nix).
+  #
+  # SuspendState=disk rather than suspend-then-hibernate: there is no window at
+  # all where the disk key sits in RAM untouched. The cost is ~13 GiB written to
+  # NVMe per suspend and a slower wake - if that gets annoying, replace this with
+  # `HibernateDelaySec=15min` and keep SuspendState=mem.
+  systemd.sleep.settings.Sleep.SuspendState = "disk";
   # Limine instead of systemd-boot; kernels are read straight from /boot.
   boot.loader.limine = {
     enable = true;

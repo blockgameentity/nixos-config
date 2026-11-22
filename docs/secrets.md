@@ -17,8 +17,7 @@ Everything that can be copied or regenerated lives in Bitwarden. Suggested items
 | Item | Type | Notes |
 | --- | --- | --- |
 | `desu` login / sudo password | login | The weak one. Only reachable locally or over the tailnet. |
-| LUKS passphrase - laptop | note | Distinct per machine, see "Do not reuse" below. |
-| LUKS passphrase - desktop | note | Distinct per machine. |
+| LUKS passphrase - laptop + desktop | note | One shared strong passphrase, see "One password everywhere" below. |
 | restic repository password | note | Needed to *read* the backups. Losing it loses the backups. |
 | restic S3/R2 credentials | login | Access key + secret for the backup target. |
 | Cloudflare Origin CA key + cert | certificate | Record the expiry date in the item. |
@@ -75,29 +74,33 @@ password behind a leaked hash falls in seconds, which is why the file is root-on
 
 Never use `users.users.desu.password = "..."` - plaintext ends up world-readable in the Nix store.
 
-## Do not reuse one password everywhere
+## One password everywhere (accepted decision)
 
-Using the same string for Bitwarden, LUKS and restic collapses three independent failures into one:
+**Decision: the same strong passphrase is used for the Bitwarden master, LUKS on both machines and
+the restic repository.** The vault is the source of truth for everything else.
 
-- **LUKS is crackable offline.** Anyone who copies the disk image can attack the passphrase at
-  billions of guesses per second with no rate limit. The same string in the vault means that one
-  result also opens the vault.
-- **The vault is the other side of it.** A service breach only hands over a hash; if it is the same
-  string as the disk passphrase, that hash is a disk passphrase candidate too.
-- **restic is the third copy.** The repository password protects the backup of `/var/lib/secrets`,
-  so reusing it means the backup protects its own key.
+What that means, stated once so it does not need re-arguing:
 
-Minimum sensible split:
+- The passphrase is now a single point of failure. Anyone who cracks the disk image offline has
+  guessed a candidate for the vault and for the backups at the same time.
+- The upside is real: one strong string that is actually memorised beats three weaker ones written
+  on sticky notes, and nothing has to be synced between machines.
+- The bar this has to clear is therefore higher than for a throw-away password: **five to seven
+  random words**, never reused with any online service, never typed into a shell where it lands in
+  history, never in a screenshot.
 
-| Purpose | Kind | Where it lives |
-| --- | --- | --- |
-| Bitwarden master | long passphrase, unique, never used elsewhere | head + paper |
-| LUKS (per machine) | long passphrase, unique per machine | head + paper |
-| Everything you never type (restic, CI, API keys, app `.env`) | random 40+ chars | Bitwarden only |
+Mitigations that keep this reasonable without adding a second password to type:
 
-Rules of thumb: secrets you *type* are passphrases you memorise; secrets you *paste* are random and
-live only in the vault. The weak `desu` sudo password is fine for its purpose (rate-limited console
-or tailnet login, and it protects nothing else) - it must never be reused for the three above.
+| Mitigation | Why it still helps |
+| --- | --- |
+| Long passphrase (5-7 words) | LUKS has no rate limit; length is the only thing that makes offline cracking impractical. |
+| Bitwarden KDF set to Argon2id | Makes a stolen vault hash expensive to attack, in the vault settings - not 2FA. |
+| Random values for everything never typed | restic, CI tokens, API keys and `.env` files stay random 40+ char strings; they never need to be memorised, so they cost nothing to keep unique. |
+| Rotate the cheap credentials independently | Tailscale keys, CI tokens and app tokens can be replaced at any time, so they do not inherit the shared passphrase's risk. |
+| Write it on paper, off-machine | Protects against the realistic failure: you, not an attacker, being locked out. |
+
+The weak `desu` sudo password is a separate, much lower-stakes string: it only guards a console or
+tailnet login, and it protects nothing else.
 
 ## The lock-screen problem
 
@@ -111,16 +114,11 @@ attempt), which turns four letters into days of typing.
 What actually fixes it, in order of effect:
 
 1. Give the laptop account a real password (it does not have to equal the server's weak one).
-2. Make the laptop hibernate instead of suspending, so the LUKS key leaves RAM and resuming needs
-   the disk passphrase:
-   ```nix
-   systemd.sleep.extraConfig = ''
-     [Sleep]
-     HibernateDelaySec=30min
-   '';
-   ```
-   `systemctl suspend` then hibernates after 30 idle minutes. Requires hibernation to work first -
-   see `docs/remaining-work.md`.
+2. **The laptop hibernates instead of suspending** (`hosts/laptop/configuration.nix`:
+   `systemd.sleep.settings.Sleep.SuspendState = "disk"`). The lid, the suspend key and
+   `systemctl suspend` all end in hibernation, so the LUKS key leaves RAM and a stolen sleeping
+   laptop needs the disk passphrase. Cost: ~13 GiB written per suspend and a slower wake. Fallback
+   if that becomes annoying: `SuspendState = "mem"` plus `HibernateDelaySec = "15min"`.
 3. Shorten the idle timeout before the session locks and the screen blanks.
 
 ## Copying secrets between machines
