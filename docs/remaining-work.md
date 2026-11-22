@@ -21,6 +21,8 @@
 2. Generate target hardware configuration with `nixos-generate-config`; choose partitioning/UEFI.
 3. Supply SSH public key, password hash, actual public origin IP, Cloudflare Origin CA
    certificate/key, original Fluxer/TTML environment and cookies, and pinned image digests.
+   Supply a one-off Tailscale auth key for headless enrollment; SSH is tailscale0-only.
+   Confirm SSH from another tailnet device before removing rescue-console access.
 4. Build/push/load the TTML image on a machine with its full build context. Push the SPAR
    flake to its real repository, then supply the image and original data/config.
 5. Install and boot the NixOS host; restore databases/files; run live service/network tests.

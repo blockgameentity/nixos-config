@@ -15,7 +15,7 @@ let
 in {
   networking.firewall = {
     enable = true;
-    allowedTCPPorts = [ 22 7881 ];
+    allowedTCPPorts = [ 7881 ];
     allowedUDPPorts = [ 7882 ];
     extraCommands = lib.concatMapStringsSep "\n" (range:
       "iptables -A nixos-fw -s ${range} -p tcp -m multiport --dports 80,443 -j nixos-fw-accept") v4

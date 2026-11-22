@@ -56,7 +56,7 @@ def main():
         if address.version != 4 or not address.is_global:
             parser.error(f'Use the actual public origin IPv4, not a private/reserved address: {value}')
     for relative in ['fluxer.env', 'ttml.env', 'youtube-cookies.txt', 'desu-password-hash',
-                     'cloudflare/origin.pem', 'cloudflare/origin-key.pem', 'ci-token']:
+                     'cloudflare/origin.pem', 'cloudflare/origin-key.pem', 'ci-token', 'tailscale-auth-key']:
         checks.secret(relative)
     checks.secret('cloudflare', directory=True)
     root = Path(__file__).resolve().parents[1]

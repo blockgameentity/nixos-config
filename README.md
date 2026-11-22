@@ -73,6 +73,9 @@ secret values. Missing secrets intentionally make affected services fail closed.
   three hostnames and its key. This subdirectory must be traversable by Caddy (root:caddy 0750),
   files root:caddy 0640. The parent `/var/lib/secrets` is root:caddy 0710 (traverse only
   for Caddy). All OTHER secret files must be root:root 0600; Caddy must not read them.
+- `tailscale-auth-key`: one-off Tailscale auth key for a persistent, preauthorized server
+  node, root:root 0600. Use appropriate tailnet ACL/tagging. Enrollment preserves your
+  existing OpenSSH key workflow; SSH is allowed only on tailscale0, not the public Internet.
 - `ci-token`: repository-scoped fine-grained GitHub token with Administration:write for
   runner management, root-readable only. `local.nix` currently enables ExamWatcher/desktop.
   Replace `blockedIPv4` with the server's real origin IP(s) before deploying. Read `ci/README.md`.
@@ -121,7 +124,9 @@ Web backends bind only loopback; databases have no published ports. Docker publi
 bypass host INPUT firewall rules: never change these to 0.0.0.0. Verify actual exposure remotely.
 Fluxer voice requires direct TCP 7881 / UDP 7882. These are deliberately public, not Cloudflare-only.
 Check LiveKit's advertised external IP, NAT forwarding and real two-client calls. SSH remains
-public key-only on 22; restrict it to a VPN/admin IP once recovery access is tested.
+public key-only on 22 but is allowed only on tailscale0. Provision the auth key before first
+boot for headless enrollment; public SSH is not available as a fallback. Confirm tailnet SSH
+from a second device before disconnecting rescue access. CI already blocks 100.64.0.0/10.
 
 ## Acceptance tests / backups
 
