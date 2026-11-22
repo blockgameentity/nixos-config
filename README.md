@@ -13,7 +13,11 @@ No server data or secret values belong in this repository.
   Docker Compose for Fluxer. Fluxer's existing health checks and initialization dependency
   graph are retained. No users are added to Docker's root-equivalent group.
 - `services/fluxer`: original non-secret configuration; runtime environment file supplies secrets.
-- `docs/runner-plan.md`: CI isolation design; **no contributor runners are enabled**.
+- `modules/ci-runners.nix`, `ci/`: implemented disposable KVM controller and guest image.
+  `hosts/mac/configuration.nix` is the nix-darwin trusted-runner service. See `ci/README.md`
+  for local test results and deployment gates. `local.nix` enables one repository runner;
+  replace the placeholder origin IP and token before deployment.
+- `docs/runner-plan.md`: CI threat model and authorization requirements.
 - SPAR's independent flake is in the sibling extracted `spar-tilbuds-bot-v2` directory;
   push its flake and lockfile to the real upstream repo, then import its NixOS module.
 
@@ -69,6 +73,9 @@ secret values. Missing secrets intentionally make affected services fail closed.
   three hostnames and its key. This subdirectory must be traversable by Caddy (root:caddy 0750),
   files root:caddy 0640. The parent `/var/lib/secrets` is root:caddy 0710 (traverse only
   for Caddy). All OTHER secret files must be root:root 0600; Caddy must not read them.
+- `ci-token`: repository-scoped fine-grained GitHub token with Administration:write for
+  runner management, root-readable only. `local.nix` currently enables ExamWatcher/desktop.
+  Replace `blockedIPv4` with the server's real origin IP(s) before deploying. Read `ci/README.md`.
 
 ## Restore and start
 

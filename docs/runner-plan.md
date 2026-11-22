@@ -119,5 +119,7 @@ private source code itself can be copied out by the build.
 7. Enable trusted pilot repository first. Split release authorization and fork workflows before adding contributor jobs.
 8. Run a malicious-job test matrix; only then enable external contributor execution.
 
-Do not enable untrusted runner services until these gates pass. This document is not a
-claim that a secure VM controller has already been implemented.
+Do not enable untrusted runner services until these gates pass. The controller and host
+modules are now implemented in `ci/` and `modules/ci-runners.nix`; see `ci/README.md`
+for tests performed and remaining deployment gates. This document retains the threat model
+and requirements, and does not claim target-machine deployment.
