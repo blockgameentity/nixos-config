@@ -1,0 +1,30 @@
+# 1. GPU bus IDs -> the two PLACEHOLDER lines in hosts/laptop/configuration.nix
+lspci -d ::0300 -d ::0302
+
+# 2. CPU vendor + model -> Intel or AMD microcode
+grep -m1 -E '^(vendor_id|model name)' /proc/cpuinfo
+
+# 3. RAM (decides the swap LV size: must be >= RAM + 2 GiB) and current swap
+free -h; swapon --show
+
+# 4. Target disk: names, sizes, labels, existing partitions
+lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID,MOUNTPOINTS
+
+# 5. Wifi/ethernet driver modules (NetworkManager needs the right one bound)
+lspci -nnk | grep -A3 -E 'Network controller|Ethernet controller'
+
+# 6. Storage + USB controller modules -> boot.initrd.availableKernelModules
+lspci -nnk | grep -A3 -E 'NVMe|SATA|USB controller'
+
+# 7. UEFI + Secure Boot state (we keep SB off, just confirming the firmware)
+ls /sys/firmware/efi >/dev/null && echo UEFI || echo BIOS
+od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-* 2>/dev/null | tail -1
+
+# 8. Battery / AC / backlight — decides whether TLP or power-profiles-daemon goes in
+ls /sys/class/power_supply/ /sys/class/backlight/ 2>/dev/null
+
+# 9. Bluetooth present?
+rfkill list 2>/dev/null; lsusb | grep -i blue
+
+# 10. NixOS-format hardware dump (only if nix is installed on the laptop)
+nix shell nixpkgs#nixos-install-tools -c nixos-generate-config --show-hardware-config
