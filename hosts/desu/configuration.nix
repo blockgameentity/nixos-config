@@ -1,5 +1,14 @@
-{ pkgs, lib, ... }: {
-  imports = [ ./hardware-configuration.nix ./local.nix ../../modules/edge.nix ../../modules/apps.nix ];
+{ pkgs, lib, ttml, spar, ... }: {
+  imports = [
+    ./hardware-configuration.nix
+    ./local.nix
+    ../../modules/edge.nix
+    ../../modules/apps.nix
+    ../../modules/backup.nix
+    ../../modules/maintenance.nix
+    ttml.nixosModules.default
+    spar.nixosModules.default
+  ];
   networking.hostName = "desu";
   networking.useDHCP = true;
   # Tailscale SSH handles OAuth; no OpenSSH daemon or SSH keys required.

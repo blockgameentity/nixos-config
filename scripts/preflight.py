@@ -65,8 +65,10 @@ def main():
     root = Path(__file__).resolve().parents[1]
     local = (root / 'hosts/desu/local.nix').read_text()
     hardware = (root / 'hosts/desu/hardware-configuration.nix').read_text()
-    checks.require('assertion = false' not in local, 'Remove the local installation gate after filling access/image settings')
-    checks.require('assertion = false' not in hardware, 'Replace hardware-configuration.nix with nixos-generate-config output')
+    checks.require('PLACEHOLDER' not in local,
+                   'Remove every PLACEHOLDER marker in local.nix (password hash, digest pins, origin IP)')
+    checks.require('PLACEHOLDER' not in hardware,
+                   'Replace hardware-configuration.nix with nixos-generate-config output')
     checks.require(':latest' not in local and ':migration' not in local, 'Pin application images by digest')
     for value in args.origin:
         checks.require(f'"{value}/32"' in local, f'Add actual origin {value}/32 to disposableRunners.blockedIPv4')

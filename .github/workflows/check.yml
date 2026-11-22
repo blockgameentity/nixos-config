@@ -1,0 +1,38 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # Actions are pinned to commit SHAs: a moved tag must not get to run in a
+      # repository that holds deployment configuration.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: >-
+          cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      # README install gate: the flake's assertions are replaced by
+      # scripts/preflight.py, which needs real secrets and is not run here.
+      - name: Flake check (evaluation only)
+        run: nix flake check --no-build
+      - name: Cheap gates (preflight tests, runner tests, config evaluation)
+        run: nix build -L .#checks.x86_64-linux --no-link
+      - name: Evaluate the macOS runner configuration
+        run: nix eval --raw .#darwinConfigurations.ci-mac.system.drvPath

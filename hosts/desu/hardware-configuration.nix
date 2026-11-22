@@ -1,6 +1,6 @@
-# Replace with nixos-generate-config output from the target installation.
+# PLACEHOLDER: replace with nixos-generate-config output from the target install.
+# scripts/preflight.py refuses to pass while a PLACEHOLDER marker remains.
 { lib, ... }: {
-  assertions = [{ assertion = false; message = "Replace the hardware-configuration.nix placeholder before installation."; }];
   fileSystems."/" = { device = "/dev/disk/by-label/nixos"; fsType = "ext4"; };
   fileSystems."/boot" = { device = "/dev/disk/by-label/boot"; fsType = "vfat"; };
   boot.initrd.availableKernelModules = [ "xhci_pci" "ahci" "nvme" "usbhid" "sd_mod" ];

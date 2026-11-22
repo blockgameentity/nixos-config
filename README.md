@@ -1,8 +1,8 @@
 # desu.re NixOS migration
 
 NixOS host configuration for `chat.desu.re`, `overleaf.desu.re`, and `ttml.desu.re`.
-This is a migration scaffold, **not a tested production deployment**. Two intentional
-assertions prevent installation until hardware and local access settings are supplied.
+This is a migration scaffold, **not a tested production deployment**. `PLACEHOLDER` markers
+in `hosts/desu` must be replaced first; `scripts/preflight.py` enforces that.
 No server data or secret values belong in this repository.
 
 ## Layout and choices
@@ -17,9 +17,15 @@ No server data or secret values belong in this repository.
   `hosts/mac/configuration.nix` is the nix-darwin trusted-runner service. See `ci/README.md`
   for local test results and deployment gates. `local.nix` enables one repository runner;
   replace the placeholder origin IP and token before deployment.
+- `modules/backup.nix`: restic backups. Off by default; set `desu.backup.repository` (or a
+  credential `environmentFile`) and it stops the writer services, snapshots, then restarts.
+- `modules/maintenance.nix`: weekly store GC (on by default, 30d) and opt-in flake
+  auto-upgrade (`desu.maintenance.autoUpgrade.enable`, no automatic reboot).
 - `docs/runner-plan.md`: CI threat model and authorization requirements.
-- SPAR's independent flake is in the sibling extracted `spar-tilbuds-bot-v2` directory;
-  push its flake and lockfile to the real upstream repo, then import its NixOS module.
+- `.github/workflows/check.yml`: evaluation-only CI (flake check + cheap gates).
+- TTML (`blockgameentity/ttml-fixer`) and SPAR (`O-Blocken/tilbuds-bot`) are **flake inputs**;
+  the server imports their `nixosModules.default` and sets only image/cookie options, so
+  container/env/volume contracts live in the applications, not duplicated here.
 
 Nixpkgs is locked. Container tags inherited from the export are NOT immutable. Before
 production, record currently running image digests and replace tags (including Fluxer)
@@ -48,8 +54,8 @@ Boot the NixOS installer, partition/mount deliberately (no destructive disk scri
 This scaffold assumes UEFI/systemd-boot; adapt it if the server uses legacy BIOS. Generate
 `hardware-configuration.nix` using `nixos-generate-config --root /mnt` and replace the placeholder.
 Edit `local.nix`: provision the password-hash file for local console/sudo authentication,
-set application image references, and remove the local assertion only after reviewing it.
-Set timezone/networking to match your actual provider. Stage new files before flake evaluation.
+set application image references, and replace the `PLACEHOLDER` markers. Set timezone and
+networking to match your actual provider. Stage new files before flake evaluation.
 
 ```console
 git add hosts/desu
@@ -81,6 +87,8 @@ secret values. Missing secrets intentionally make affected services fail closed.
 - `ci-token`: repository-scoped fine-grained GitHub token with Administration:write for
   runner management, root-readable only. `local.nix` currently enables ExamWatcher/desktop.
   Replace `blockedIPv4` with the server's real origin IP(s) before deploying. Read `ci/README.md`.
+- `restic.env` (or `restic-password`): repository URL/key and, for S3/R2, the credentials.
+  Only needed once `desu.backup.enable = true`.
 
 ## Restore and start
 
@@ -164,16 +172,16 @@ before disconnecting rescue access. CI already blocks 100.64.0.0/10.
   TTML health and one complete transcription, bot state if enabled.
 - Confirm ports 1337/8000/42295 and all DB ports are inaccessible remotely.
 - Reboot and repeat. Confirm restored data survives container restart.
-- Establish scheduled, encrypted off-host backups with tested retention and restore drills.
-  Restic is installed but no backup timer is enabled: destination/credentials/consistency
-  policy have not been supplied. NixOS rollback does NOT roll back databases or container images.
+- Backups: `systemctl list-timers restic-backups-desu.timer`, `systemctl start
+  restic-backups-desu.service`, then perform an actual `restic restore` drill. Verify the
+  configured Docker volume names first with `docker volume ls`. NixOS rollback does NOT
+  roll back databases or container images.
 
-## SPAR module integration (after pushing)
+## SPAR image
 
-Add an input `spar.url = "github:YOUR-OWNER/YOUR-REPO/REV"`, import
-`spar.nixosModules.default`, set `services.sparBot.enable = true` and `.image` to the built
-digest. Restore data/config.toml to `/srv/spar`, and env to `/var/lib/secrets/spar.env`.
+SPAR is consumed as the `spar` flake input (`github:O-Blocken/tilbuds-bot`). Its service is
+**disabled while `desu.images.spar = null`**; set it to a published digest to start it.
+Restore data/config.toml to `/srv/spar`, and env to `/var/lib/secrets/spar.env`.
 The bot flake wraps the existing Dockerfile; it is not a native/reproducible PaddleOCR package.
-Run it from a clean Git checkout after pushing, NEVER directly from this extracted directory:
-Nix can copy untracked runtime files/secrets into its world-readable store for non-Git flakes.
-The image build context itself explicitly includes only source/build files.
+Build it from a clean Git checkout, never from an extracted tree: Nix can copy untracked
+runtime files/secrets into its world-readable store for non-Git flakes.

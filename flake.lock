@@ -40,7 +40,49 @@
     "root": {
       "inputs": {
         "nix-darwin": "nix-darwin",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "spar": "spar",
+        "ttml": "ttml"
+      }
+    },
+    "spar": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1795371946,
+        "narHash": "sha256-Z8t7v8x7/b6Wqo8GNvejP4AGPgS74iH6Qouyxp4il1w=",
+        "owner": "O-Blocken",
+        "repo": "tilbuds-bot",
+        "rev": "72bc1635af83c8f77e370bd412e3a2d5975b2e6b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "O-Blocken",
+        "repo": "tilbuds-bot",
+        "type": "github"
+      }
+    },
+    "ttml": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1795371823,
+        "narHash": "sha256-fG/BWke5GU2XpuCICDamxxRTuHWROfQDhy/dzVAsDBE=",
+        "owner": "blockgameentity",
+        "repo": "ttml-fixer",
+        "rev": "55161383a8966900a5ae97d0295aa286d4088529",
+        "type": "github"
+      },
+      "original": {
+        "owner": "blockgameentity",
+        "repo": "ttml-fixer",
+        "type": "github"
       }
     }
   },
