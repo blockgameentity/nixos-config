@@ -5,6 +5,9 @@
   assertion that mattered: `services.displayManager.defaultSession = "wayfire"` needs
   `services.displayManager.sessionPackages = [ wayfire ];` or SDDM offers no session at all. This is
   still not a build/boot test: nothing was compiled or started.
+- `checks.config-eval` evaluates those same configurations, so `nix flake check` fails on an
+  assertion too. The previous version wrapped each host in `extendModules { assertions = mkForce [ ]; }`,
+  which is why the session bug above passed CI. `nix flake check --no-build` passes.
 - Generated Caddy configuration built and `caddy adapt` passed using the pinned Nixpkgs Caddy.
   Certificate loading and live TLS were NOT tested (runtime certificate files are not available here).
 - Fluxer `docker compose config --quiet` passed using synthetic environment values; no services started.

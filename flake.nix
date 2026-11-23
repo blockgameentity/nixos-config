@@ -112,8 +112,18 @@
     nixosConfigurations.laptop = mkHost { hostName = "laptop"; };
     nixosConfigurations.desktop = mkHost { hostName = "desktop"; };
 
-    # Cheap CI gates. The installation assertions are intentionally disabled
-    # here: they guard real secrets/hardware, not the shape of the config.
+    # Cheap CI gates. Assertions stay ON, deliberately: they are the cheapest
+    # thing that can catch a configuration that would refuse to install, and they
+    # already have - `services.displayManager.defaultSession = "wayfire"` without
+    # the matching `services.displayManager.sessionPackages` failed an assertion
+    # that `nixos-install` would have hit, while a local check that forced
+    # `assertions = [ ]` reported success. Do not reintroduce that wrapper.
+    #
+    # The deployment gates do not need masking: `hosts/desu/local.nix` satisfies
+    # their *shape* (`blockedIPv4` is a non-empty list, `desu.backup` falls back to
+    # /var/lib/secrets/restic.env), and `scripts/preflight.py` is what enforces the
+    # real values before an install. If a gate does fire here, the config is wrong,
+    # not the check.
     checks.x86_64-linux = let
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
       hosts = [ "desu" "desktop" "laptop" ];
@@ -123,9 +133,7 @@
         map
           (name: {
             inherit name;
-            drvPath = (self.nixosConfigurations.${name}.extendModules {
-              modules = [ ({ lib, ... }: { assertions = lib.mkForce [ ]; }) ];
-            }).config.system.build.toplevel.drvPath;
+            drvPath = self.nixosConfigurations.${name}.config.system.build.toplevel.drvPath;
           })
           hosts;
     in {
