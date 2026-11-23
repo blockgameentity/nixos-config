@@ -5,10 +5,13 @@
   # hardware-configuration.nix and modules/base.nix are added by mkHost, not here.
 
   # Display, terminal emulator and font baseline shared with the laptop, the
-  # desktop-only CUDA/NVIDIA/Unity layer, and the CachyOS kernel from Chaotic-Nyx.
+  # desktop-only CUDA/NVIDIA/Unity layer, the CachyOS kernel from Chaotic-Nyx, and
+  # the Wayfire session (modules/wayfire.nix). Wayfire lives on its own branch
+  # until it has proven itself against Plasma; see docs/wayfire.md.
   imports = [
     ../../modules/graphical.nix
     ../../modules/desktop.nix
+    ../../modules/wayfire.nix
     ../../modules/cachyos.nix
     ../../modules/btrfs.nix
     ../../modules/memory.nix

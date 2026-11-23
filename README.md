@@ -46,6 +46,9 @@ No server data or secret values belong in this repository.
 - `modules/maintenance.nix`: weekly store GC (on by default, 30d) and opt-in flake
   auto-upgrade (`desu.maintenance.autoUpgrade.enable`, no automatic reboot).
 - `docs/runner-plan.md`: CI threat model and authorization requirements.
+- `docs/wayfire.md`: the Wayfire session for both workstations, on its own branch - the five
+  defects that made it feel broken (with upstream references), why nixpkgs' 0.10.1 is not
+  enough, and how 0.11 is packaged here.
 - `.github/workflows/check.yml`: evaluation-only CI (flake check + cheap gates).
 - TTML (`blockgameentity/ttml-fixer`) and SPAR (`O-Blocken/tilbuds-bot`) are **flake inputs**;
   the server imports their `nixosModules.default` and sets only image/cookie options, so
