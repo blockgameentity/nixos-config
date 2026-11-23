@@ -1,8 +1,10 @@
 # Validation performed
 
-- NixOS assertions evaluated: only the two intentional installation gates fail (hardware and local settings).
-- Entire NixOS system derivation evaluated successfully with assertions disabled for that evaluation only.
-  The repository itself retains the safety assertions. This is not a full OS build/boot test.
+- All three hosts (`desu`, `desktop`, `laptop`) evaluate to a derivation with assertions **enabled**
+  (`nix eval --raw .#nixosConfigurations.<host>.config.system.build.toplevel.drvPath`). The
+  assertion that mattered: `services.displayManager.defaultSession = "wayfire"` needs
+  `services.displayManager.sessionPackages = [ wayfire ];` or SDDM offers no session at all. This is
+  still not a build/boot test: nothing was compiled or started.
 - Generated Caddy configuration built and `caddy adapt` passed using the pinned Nixpkgs Caddy.
   Certificate loading and live TLS were NOT tested (runtime certificate files are not available here).
 - Fluxer `docker compose config --quiet` passed using synthetic environment values; no services started.

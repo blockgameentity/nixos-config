@@ -381,6 +381,7 @@ Windows rewriting the boot order, not this repo - fix it with `efibootmgr -o`.
 | Dates and clock | `LC_TIME = "da_DK.UTF-8"` -> `DD-MM-YYYY`, 24h `HH:MM` | `modules/base.nix` |
 | Units / paper | `LC_MEASUREMENT`/`LC_PAPER = da_DK` (metric, A4) | `modules/base.nix` |
 | Time zone | `Europe/Copenhagen` | each `hosts/<name>/configuration.nix` |
+| GTK / Qt theme | `Adwaita-dark`, Qt `gtk3` platform theme + `adwaita-dark` style | `home/graphical.nix` |
 
 `console.earlySetup` is the part that is easy to miss: without it the keymap only applies once
 stage 2 starts, so the **LUKS passphrase would be typed on a US layout** while everything after
@@ -395,22 +396,20 @@ Chromium/Electron apps and Firefox from silently falling back to XWayland, and t
 is exported as `XKB_DEFAULT_LAYOUT=dk` for compositors that do not read the xkb option. The
 bootloader menu itself uses the firmware's keyboard handling and cannot be changed from NixOS.
 
-## Login: LUKS asks once
+## Login: LUKS, then the account password
 
-The desktop and laptop import `modules/graphical.nix`, which sets
-`services.getty.autologinUser` and `services.displayManager.autoLogin` for `desu`. The disk
-passphrase is the only thing typed at boot; the console (and any display manager added later)
-logs straight in.
+The desktop and laptop import `modules/graphical.nix`, which deliberately does **not** set
+`services.getty.autologinUser` or `services.displayManager.autoLogin`. Boot asks for two things: the
+LUKS passphrase, then the `desu` password at the SDDM greeter. The session (Wayfire) comes from
+`modules/wayfire.nix`.
 
-That is a deliberate tradeoff: whoever powers the machine on and knows the LUKS passphrase
-gets a logged-in session. The server is unaffected - no autologin, no graphical module.
+Autologin is not just a convenience question here: `pam_gnome_keyring` unlocks the login keyring
+from the password that crosses PAM at login (`security.pam.services.sddm.enableGnomeKeyring`).
+With autologin there is no such password, so the choice was one unlock prompt per boot or an
+unencrypted keyring. Typing it once purchases an encrypted keyring that unlocks itself, and it
+means a powered-on machine with the disk already unlocked is no longer a logged-in session.
 
-Note that this repo currently configures **no display manager and no compositor** for the
-graphical hosts: they boot to a TTY with fish. That is a deliberate open item, not an omission -
-the desktop environment / compositor choice (Hyprland, Sway, Niri, Plasma 6) is still being
-decided. `services.displayManager.autoLogin` and the Wayland variables above are already in
-place so that whichever option lands inherits autologin and the Danish layout instead of
-re-introducing a second password prompt.
+The server is unaffected: no graphical module, no display manager, console login only.
 
 ## Remote access
 
@@ -470,7 +469,10 @@ shader), JetBrains Mono in its Nerd Font variant as the default monospace,
 Noto Color Emoji, and the both-machines applications: firefox, libreoffice,
 filezilla, obsidian, bitwarden, celluloid, imhex, signal, insomnia, qbittorrent,
 prismlauncher, ayugram, obs-studio, ktailctl (Tailscale GUI), kalker,
-qalculate-gtk and zed. Steam and the sched_ext scheduler live in
+qalculate-gtk and zed. GTK and Qt are pinned dark there (`Adwaita-dark` for GTK,
+the `gtk3` platform theme plus the `adwaita-dark` widget style for Qt, with the
+`prefer-dark` gsettings key that libadwaita apps read), so no app opens in a
+light theme. Steam and the sched_ext scheduler live in
 `modules/graphical.nix` because both are NixOS services rather than packages:
 `programs.steam.enable`, and `services.scx-loader` with `scx_bpfland` as the
 default scheduler. `czkawka` is graphical-only even though it also ships
@@ -506,8 +508,8 @@ shared by the Bitwarden master, LUKS and restic (a documented, accepted tradeoff
 typed by hand is a random string and lives only in the vault.
 
 `desu-password-hash` is required on **every** host, not just the server: all three set
-`users.users.desu.hashedPasswordFile`, and `sudo` has nothing to check without it (the
-workstations' autologin hides that until the first `sudo`, or the first SSH login). Generate one
+`users.users.desu.hashedPasswordFile`, and `sudo` has nothing to check without it (on the
+workstations that means the SDDM greeter rejects every password, not just `sudo`). Generate one
 hash and reuse it, or use a different password per machine:
 
 ```console

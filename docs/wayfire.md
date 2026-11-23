@@ -251,6 +251,10 @@ Only what could not survive the move:
   Upstream does tag extras for 0.11 (`v0.11.2`) — see "Still outstanding" for what packaging them
   takes. Worth knowing: on CachyOS these were already suspect, because the distro's
   `wayfire-plugins-extra` is 0.10.0 running against a 0.11 core.
+- `command_lock` and the `swayidle` timeout both call `swaylock -f -c 000000`. The CachyOS value
+  was `-c 000000c` — seven hex digits, which swaylock rejects (`parse_color` accepts only 6 or 8)
+  and replaces with opaque white `0xFFFFFFFF`. That is why the lockscreen came up white instead of
+  black. Five-sixths of the value was right; the trailing `c` was the whole bug.
 - Nothing else. Output sections, keybinds, blur, workspace layout and the ironbar config are as
   they were.
 

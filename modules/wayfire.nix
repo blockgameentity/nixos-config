@@ -42,7 +42,13 @@ in {
     swayosd # swayosd-server / swayosd-client
     blueman # blueman-applet
     networkmanagerapplet # nm-applet
-    hyprpolkitagent
+    # The polkit agent. polkit_gnome, not hyprpolkitagent: the latter is
+    # Hyprland's agent (hyprtoolkit), and under Wayfire its dialog can come up
+    # unfocusable, which looks exactly like "no agent at all": the mount or
+    # pkexec request just fails. polkit-gnome is a plain GTK3 agent and inherits
+    # the Adwaita-dark theme. Home-manager wraps its libexec binary on PATH as
+    # `polkit-gnome-agent`, which is what the [autostart] line starts.
+    polkit_gnome
     swaybg # wallpaper.sh
     jq # wallpaper.sh and slideshow.sh parse wlr-randr output with it
     ironbar
@@ -72,15 +78,22 @@ in {
   ]);
 
   # Sessions: the wayfire.desktop above lands in /run/current-system/sw, so a
-  # display manager can offer it. modules/graphical.nix already turns on
-  # autologin, which needs a display manager to apply to - neither host had one,
-  # so this is what makes either of them do anything.
+  # display manager can offer it. SDDM is also what asks for the account password
+  # (modules/graphical.nix has no autologin), and that password is what
+  # pam_gnome_keyring unlocks the login keyring with.
   services.displayManager.sddm = {
     enable = true;
     # Wayland greeter: no X server, matching the Wayland-only session variables
     # in modules/graphical.nix.
     wayland.enable = true;
   };
+  # SDDM only offers sessions whose packages are listed here: the list of valid
+  # `defaultSession` names is built from these `providedSessions` attributes, not
+  # from what happens to be in /run/current-system/sw. Without this,
+  # `defaultSession = "wayfire"` fails its assertion and no session is offered at
+  # all. (The wayfire package's passthru.providedSessions comes from nixpkgs and
+  # survives the overrideAttrs in packages/wayfire.nix.)
+  services.displayManager.sessionPackages = [wayfire];
   services.displayManager.defaultSession = "wayfire";
 
   # Screensharing. The failure mode worth avoiding is the one that made this look
@@ -100,6 +113,11 @@ in {
       # Wayfire handles its own idle/screensaver and has no Inhibit backend;
       # "none" is what upstream ships in wayfire-portals.conf.
       "org.freedesktop.impl.portal.Inhibit" = ["none"];
+      # gnome-keyring's portal backend carries the Secret interface, which is
+      # how flatpak/portal apps get at org.freedesktop.secrets. Wayfire's session
+      # name is not in the backend's UseIn list, so it has to be named here or
+      # the Secret portal resolves to nothing. Screencast stays on wlr.
+      "org.freedesktop.impl.portal.Secret" = ["gnome-keyring"];
     };
     # Written where xdg-desktop-portal-wlr reads it. The chooser is what turns a
     # screencast request into a specific output; without one the portal can
