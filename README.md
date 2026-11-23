@@ -90,6 +90,18 @@ Edit `local.nix`: provision the password-hash file for local console/sudo authen
 set application image references, and replace the `PLACEHOLDER` markers. Set timezone and
 networking to match your actual provider. Stage new files before flake evaluation.
 
+Two things that bite on a workstation install specifically, because the graphical hosts have **no
+autologin**: create `/mnt/var/lib/secrets/desu-password-hash` *before* `nixos-install` (the SDDM
+greeter rejects every password without it - see "Provision runtime secrets"), and run
+`loadkeys dk` in the live installer first, since the LUKS passphrase and that account password are
+typed there while the installed system boots with a Danish keymap. Then:
+
+```console
+sudo nixos-install --flake .#laptop --no-root-passwd    # or .#desktop
+```
+
+`--no-root-passwd` leaves root locked on purpose; `sudo` uses the `desu` password.
+
 ### Partitioning with btrfs subvolumes
 
 All hosts use one vfat ESP and one btrfs pool split by purpose. The server gets the most
@@ -104,6 +116,16 @@ subvolumes because it runs containers; the workstations keep eight:
 `@docker` (`/var/lib/docker`) and `@lib` (`/var/lib/containers`) exist only on the server:
 they keep container state out of a root rollback, and nothing else runs containers.
 
+Every block below addresses the disk by **device node** (`/dev/nvme0n1p2`, `/dev/vg0/root`,
+`/dev/mapper/cryptroot`), not by `/dev/disk/by-label/...`. The labels are still required and are
+still set (`mkfs.btrfs -L nixos`, `mkfs.vfat -n boot`, `luksFormat --label cryptroot`), because
+`hardware-configuration.nix` mounts everything by label at boot. The install-time commands avoid
+the label paths on purpose: those symlinks are created by udev asynchronously, so
+`cryptsetup open /dev/disk/by-label/cryptroot` issued in the same breath as
+`luksFormat --label cryptroot` can fail with *"device ... does not exist or access denied"* while
+the header is perfectly fine. If you prefer the label form anyway, run `udevadm settle` (or
+`blkid` to confirm `LABEL=`) between formatting and mounting.
+
 #### Server (`hosts/desu/hardware-configuration.nix`)
 
 ```console
@@ -113,25 +135,25 @@ mkfs.vfat -F32 -n boot /dev/nvme0n1p1
 mkfs.btrfs -L nixos /dev/nvme0n1p2
 
 # Subvolumes live at the top level (subvolid=5), never inside a mounted root.
-mount -o subvolid=5 /dev/disk/by-label/nixos /mnt
+mount -o subvolid=5 /dev/nvme0n1p2 /mnt
 for sv in @ @nix @home @root @srv @cache @log @tmp @docker @lib; do
   btrfs subvolume create /mnt/$sv
 done
 umount /mnt
 
 OPTS=noatime,compress=zstd:1
-mount -o "$OPTS",subvol=@ /dev/disk/by-label/nixos /mnt
+mount -o "$OPTS",subvol=@ /dev/nvme0n1p2 /mnt
 mkdir -p /mnt/{nix,home,root,srv,var/{cache,log,tmp},var/lib/{docker,containers},boot}
-mount -o "$OPTS",subvol=@nix   /dev/disk/by-label/nixos /mnt/nix
-mount -o "$OPTS",subvol=@home  /dev/disk/by-label/nixos /mnt/home
-mount -o "$OPTS",subvol=@root  /dev/disk/by-label/nixos /mnt/root
-mount -o "$OPTS",subvol=@srv   /dev/disk/by-label/nixos /mnt/srv
-mount -o "$OPTS",subvol=@cache /dev/disk/by-label/nixos /mnt/var/cache
-mount -o "$OPTS",subvol=@log   /dev/disk/by-label/nixos /mnt/var/log
-mount -o "$OPTS",subvol=@tmp   /dev/disk/by-label/nixos /mnt/var/tmp
-mount -o noatime,subvol=@docker /dev/disk/by-label/nixos /mnt/var/lib/docker
-mount -o noatime,subvol=@lib    /dev/disk/by-label/nixos /mnt/var/lib/containers
-mount -o fmask=0077,dmask=0077 /dev/disk/by-label/boot /mnt/boot
+mount -o "$OPTS",subvol=@nix   /dev/nvme0n1p2 /mnt/nix
+mount -o "$OPTS",subvol=@home  /dev/nvme0n1p2 /mnt/home
+mount -o "$OPTS",subvol=@root  /dev/nvme0n1p2 /mnt/root
+mount -o "$OPTS",subvol=@srv   /dev/nvme0n1p2 /mnt/srv
+mount -o "$OPTS",subvol=@cache /dev/nvme0n1p2 /mnt/var/cache
+mount -o "$OPTS",subvol=@log   /dev/nvme0n1p2 /mnt/var/log
+mount -o "$OPTS",subvol=@tmp   /dev/nvme0n1p2 /mnt/var/tmp
+mount -o noatime,subvol=@docker /dev/nvme0n1p2 /mnt/var/lib/docker
+mount -o noatime,subvol=@lib    /dev/nvme0n1p2 /mnt/var/lib/containers
+mount -o fmask=0077,dmask=0077 /dev/nvme0n1p1 /mnt/boot
 
 nixos-generate-config --root /mnt   # then compare with hosts/desu/hardware-configuration.nix
 ```
@@ -146,7 +168,7 @@ itself lives on the other NVMe and is untouched by any of this.
 ```console
 # Do NOT touch nvme0n1p1 - Windows Boot Manager and Limine both live on it.
 cryptsetup luksFormat --label cryptroot /dev/nvme0n1p2   # destroys the old CachyOS root only
-cryptsetup open /dev/disk/by-label/cryptroot cryptroot
+cryptsetup open /dev/nvme0n1p2 cryptroot
 mkfs.btrfs -L nixos /dev/mapper/cryptroot
 
 mount -o subvolid=5 /dev/mapper/cryptroot /mnt
@@ -183,7 +205,7 @@ sgdisk -n1:0:+1G -t1:ef00 -c1:boot /dev/nvme0n1
 sgdisk -n2:0:0    -t2:8309 -c2:cryptroot /dev/nvme0n1
 mkfs.vfat -F32 -n boot /dev/nvme0n1p1
 cryptsetup luksFormat --label cryptroot /dev/nvme0n1p2
-cryptsetup open /dev/disk/by-label/cryptroot cryptroot
+cryptsetup open /dev/nvme0n1p2 cryptroot
 
 # LVM inside LUKS: one volume group, a swap LV for hibernation, a root LV for btrfs.
 pvcreate /dev/mapper/cryptroot
@@ -209,7 +231,7 @@ mount -o "$OPTS",subvol=@srv   /dev/vg0/root /mnt/srv
 mount -o "$OPTS",subvol=@cache /dev/vg0/root /mnt/var/cache
 mount -o "$OPTS",subvol=@log   /dev/vg0/root /mnt/var/log
 mount -o "$OPTS",subvol=@tmp   /dev/vg0/root /mnt/var/tmp
-mount -o fmask=0077,dmask=0077 /dev/disk/by-label/boot /mnt/boot
+mount -o fmask=0077,dmask=0077 /dev/nvme0n1p1 /mnt/boot
 swapon /dev/vg0/swap               # so nixos-generate-config sees it
 ```
 
@@ -219,9 +241,10 @@ laptop that is the usual tradeoff.
 
 Measured on the actual machine: Ryzen (`AuthenticAMD` -> AMD microcode), Radeon iGPU at
 `05:00.0`, RTX 3060 Mobile, MT7921 wifi, MediaTek Bluetooth, **13 GiB usable RAM** (so the
-32 GiB swap LV clears the RAM + 2 GiB rule for hibernation). The existing 4 GiB ESP is reused -
-`mkfs.vfat -F32 -n boot /dev/nvme0n1p1` relabels it for the by-label mount - and the current LUKS
-partition is exactly where the new one goes; only the LVM layer inside it is new.
+32 GiB swap LV clears the RAM + 2 GiB rule for hibernation). The ESP is recreated at 1 GiB by the
+`sgdisk` line above and relabelled `boot` by `mkfs.vfat -n boot` - nothing on this machine shares
+it, unlike the desktop - and the current LUKS partition is exactly where the new one goes; only the
+LVM layer inside it is new.
 
 `hosts/laptop/configuration.nix` also enables the hardware that was missing entirely:
 NetworkManager (`mt7921e` wifi, `r8169` ethernet), Bluetooth, libinput, upower and
@@ -269,8 +292,9 @@ btrfs swap file there). Two hard requirements:
    `resume_offset`, a physical offset that changes every time the file is recreated - fragile.
    Hence `vg0/swap`.
 2. **Swap must be at least RAM + a couple of GiB**, or `systemctl hibernate` refuses with
-   "Not enough swap space". The 32 GiB LV above assumes a 16 GiB laptop; resize with
-   `lvextend`/`lvresize -L` if the machine has more RAM.
+   "Not enough swap space". The 32 GiB LV above covers anything up to ~30 GiB of RAM (this laptop
+   reports 13 GiB usable, so it is comfortable); resize with `lvextend`/`lvresize -L` if the machine
+   changes.
 
 Resume works with LUKS because stage 1 unlocks `cryptroot` and activates `vg0` before
 `systemd-hibernate-resume` reads `resume=/dev/vg0/swap`. zswap sits in front of normal swap

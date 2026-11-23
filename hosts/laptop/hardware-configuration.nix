@@ -22,8 +22,12 @@
     allowDiscards = true;
   };
 
-  # Activates vg0 in stage 1 (boot.initrd.services.lvm.enable defaults to this),
-  # which is what makes the LVs below addressable at boot.
+  # LVM must be active in stage 1, before the root LV can be mounted. That half is
+  # `boot.initrd.services.lvm.enable`, which is derived automatically and evaluates
+  # true for this host (its initrd carries lvm2 plus the dm db_persist udev rule).
+  # The option below is the running-system half - lvm2's udev rules and tmpfiles -
+  # and defaults to true already; it is spelled out because those udev rules are
+  # also what cryptsetup needs to see LVs and dm devices.
   services.lvm.enable = true;
 
   # Must be >= RAM + a couple of GiB, otherwise `systemctl hibernate` fails at
