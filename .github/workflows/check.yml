@@ -28,8 +28,10 @@ jobs:
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
-      # README install gate: the flake's assertions are replaced by
-      # scripts/preflight.py, which needs real secrets and is not run here.
+      # Assertions run here: checks.config-eval evaluates every host exactly as
+      # `nixos-install` would, with no `assertions = []` override. That is what
+      # caught the missing sessionPackages. scripts/preflight.py needs the real
+      # secrets and is not run in CI.
       - name: Flake check (evaluation only)
         run: nix flake check --no-build
       - name: Cheap gates (preflight tests, runner tests, config evaluation)
