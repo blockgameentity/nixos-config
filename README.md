@@ -10,8 +10,8 @@ No server data or secret values belong in this repository.
 
 - `hosts/<name>`: one machine per directory. `hosts/README.md` documents adding a host;
   `flake.nix` builds each one through `mkHost` (shared baseline + generated hardware +
-  host policy). `hosts/laptop` and `hosts/desktop` stay commented out in the flake until
-  their `hardware-configuration.nix` exists.
+  host policy). All four outputs (`desu`, `desktop`, `laptop`, plus the CI/darwin ones) are
+  live in `flake.nix`; a host still needs its own partitioning run before the first install.
 - `modules/base.nix`: host-independent baseline every NixOS host imports through `mkHost`:
   flakes, `nh` with `NH_FLAKE=/etc/nixos`, fish as the login shell, and Home Manager
   wired to the universal home profile. So `sudo nh os switch` works from any directory.
@@ -35,7 +35,10 @@ No server data or secret values belong in this repository.
 - `modules/apps.nix`: rootful Podman OCI containers for Overleaf/TTML, systemd-managed
   Docker Compose for Fluxer. Fluxer's existing health checks and initialization dependency
   graph are retained. No users are added to Docker's root-equivalent group.
-- `services/fluxer`: original non-secret configuration; runtime environment file supplies secrets.
+- `services/fluxer`: the upstream self-hosting compose bundle, vendored verbatim (compose stack +
+  the behind-a-proxy overlay, Caddyfile and `.env.example`); the runtime environment file supplies
+  secrets only, non-secret settings are in `modules/apps.nix`. Provenance, the migration from the
+  old hand-rolled file and the upgrade procedure are in `docs/fluxer.md`.
 - `modules/ci-runners.nix`, `ci/`: implemented disposable KVM controller and guest image.
   `hosts/mac/configuration.nix` is the nix-darwin trusted-runner service. See `ci/README.md`
   for local test results and deployment gates. `local.nix` enables one repository runner;
@@ -49,14 +52,18 @@ No server data or secret values belong in this repository.
 - `docs/wayfire.md`: the Wayfire session for both workstations, on its own branch - the five
   defects that made it feel broken (with upstream references), why nixpkgs' 0.10.1 is not
   enough, and how 0.11 is packaged here.
+- `docs/fluxer.md`: the vendored Fluxer bundle - provenance and digests, what changed from the
+  previous hand-rolled compose file, the required environment keys, and the upgrade/restore order.
 - `.github/workflows/check.yml`: evaluation-only CI (flake check + cheap gates).
 - TTML (`blockgameentity/ttml-fixer`) and SPAR (`O-Blocken/tilbuds-bot`) are **flake inputs**;
   the server imports their `nixosModules.default` and sets only image/cookie options, so
   container/env/volume contracts live in the applications, not duplicated here.
 
-Nixpkgs is locked. Container tags inherited from the export are NOT immutable. Before
-production, record currently running image digests and replace tags (including Fluxer)
-with digests. Do not combine OS migration with database or application upgrades.
+Nixpkgs is locked. Fluxer's images are pinned by digest inside `services/fluxer/docker-compose.yml`
+(they were on the moving `v1` tag before), so upgrading it is a visible digest diff — see
+`docs/fluxer.md`. The tags for Overleaf, TTML and SPAR are inherited from their flakes/exports and
+are NOT immutable: record the running digests and pin them before production. Do not combine OS
+migration with database or application upgrades.
 
 ## Before wiping the disk
 
@@ -511,10 +518,15 @@ chmod 600 /mnt/var/lib/secrets/desu-password-hash   # root:root, nothing else re
 Activation fails if the option points at a missing file, so create it while the target is still
 mounted at `/mnt`.
 
-- `fluxer.env`: recover the ORIGINAL Fluxer `.env`, do not regenerate its keys.
-  Set `FLUXER_DOMAIN=chat.desu.re`, `FLUXER_CADDY_SITE_ADDRESS=:80`, and keep the original
-  image version. `LIVEKIT_API_KEY` must match `webhook.api_key` in `livekit.yaml` (currently
-  `fluxer`), or update that non-secret identifier. The compose file documents required variables.
+- `fluxer.env`: recover the ORIGINAL Fluxer `.env`, do not regenerate its keys — those keys are what
+  keep sessions and attachments valid. It now needs additions the old install did not have:
+  `FLUXER_PROFILE_PSEUDONYM_SECRET`, `FLUXER_ERLANG_COOKIE` (fresh, `openssl rand -hex 32`),
+  `FLUXER_SETUP_TOKEN` (only to create the first admin in a browser) and optionally
+  `FLUXER_ACTIVITYPUB_SIGNING_KEY_BASE64`. `FLUXER_DOMAIN`, `FLUXER_SETTINGS_LOADED` and the edge
+  bind address are set by the unit, not here, so old `FLUXER_DOMAIN`/`FLUXER_CADDY_SITE_ADDRESS`
+  lines are ignored. `LIVEKIT_API_KEY` must stay in step with the compose file's bundled LiveKit
+  (currently `fluxer`). The full required list, and what breaks if each value changes, is in
+  `services/fluxer/.env.example`; the short version is in `docs/fluxer.md`.
 - `ttml.env`: original `ttml-fixer/backend/.env` (model tuning, `TTML_FIXER_PROFILE=homelab-cpu`).
   Cookie exports are optional and worker-only; if present, `youtube-cookies.txt` is mounted
   read-only only when the service sets it, otherwise remove the mount from `modules/apps.nix`.

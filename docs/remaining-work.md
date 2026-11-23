@@ -49,17 +49,26 @@ Written against the current repository state: three NixOS hosts (server `desu`, 
 1. Partition + LUKS passphrase + `nixos-install` on each machine (README has the exact commands
    per host). Desktop: the ESP is shared with Windows and must not be reformatted.
 2. Accounts need a password hash for password SSH to work (`users.users.desu.hashedPasswordFile`,
-   same pattern as `hosts/desu/local.nix`). Without it the account is locked.
-3. Laptop: verify `systemctl hibernate` ends in a real resume, not a cold boot.
-4. Desktop: after a Windows update, confirm `Windows Boot Manager` is still in the boot order
+   same pattern as `hosts/desu/local.nix`). Without it the account is locked. It is the **only**
+   secret either workstation needs: write it to `/mnt/var/lib/secrets/desu-password-hash`
+   (root:root 0600) while the target is still mounted at `/mnt`.
+3. Commit (or at least `git add`) before installing. The flake copies the git tree, not the
+   working directory: anything ignored by `.gitignore` never reaches the store, and a clean
+   clone obviously has no uncommitted work. A half-committed `services/` or `hosts/` change is
+   the easiest way to install something different from what you reviewed.
+4. Laptop: verify `systemctl hibernate` ends in a real resume, not a cold boot.
+5. Desktop: after a Windows update, confirm `Windows Boot Manager` is still in the boot order
    (Windows rewrites it; fix with `efibootmgr -o`, do not delete the entry).
-5. First boot on each machine per README "Acceptance tests / backups".
+6. First boot on each machine per README "Acceptance tests / backups", and walk
+   `docs/wayfire.md`'s checklist once on real hardware: the session, ironbar, the OLED mode
+   staging, voice/screenshare and one Steam launch.
 
 ## Open by choice
 
-- **Desktop environment / compositor**: not chosen yet. The repo configures none, so the
-  workstations boot to a TTY with fish. Autologin and the Wayland variables are already in place
-  for whichever lands (Hyprland, Sway, Niri, Plasma 6).
+- **Desktop environment / compositor**: Wayfire 0.11, packaged in `packages/wayfire.nix` and
+  imported by both workstations. nixpkgs still ships 0.10.1, so the pin and its upstream patch
+  are local; `docs/wayfire.md` carries the defect list, the display-ownership model and the
+  acceptance checklist. Plasma is no longer configured anywhere.
 - **Secure Boot**: off everywhere. Needed only for Windows anticheats on the dual-boot desktop;
   Limine's module has the sbctl path when that day comes.
 - **Snapshots**: snapper deliberately not configured; restic is the off-site copy and NixOS

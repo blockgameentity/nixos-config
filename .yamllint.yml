@@ -1,0 +1,17 @@
+---
+# YAML linting for the configuration this repository writes itself.
+#
+# services/fluxer/ is vendored verbatim from the upstream Fluxer compose bundle
+# (see docs/fluxer.md). Reflowing those files to satisfy a line-length rule
+# would defeat the point of vendoring them: the upgrade procedure is "download
+# the new bundle and diff", and every reformatted line would show up as a local
+# change. The same applies to upstream's Compose tags (!override / !reset), which
+# yamllint cannot resolve.
+extends: default
+
+ignore: |
+  services/fluxer/
+
+rules:
+  line-length: disable
+  document-start: disable

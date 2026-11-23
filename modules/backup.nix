@@ -48,8 +48,11 @@ in {
         "/srv/overleaf"
         "/srv/spar"
         "/var/lib/ttml-fixer"
-        # Fluxer's databases live in Docker volumes. Verify the exact names
-        # with `docker volume ls` on the migrated host before trusting them.
+        # Fluxer's databases live in Docker volumes. The bundle in services/fluxer is
+        # upstream's, so the project name `fluxer` still yields these prefixes; verify the
+        # exact names with `docker volume ls` on the migrated host before trusting them.
+        # valkey keeps nothing (`--save "" --appendonly no`) and edge-data only holds
+        # certificates, so neither is worth snapshotting.
         "/var/lib/docker/volumes/fluxer_postgres-data/_data"
         "/var/lib/docker/volumes/fluxer_nats-data/_data"
         "/var/lib/docker/volumes/fluxer_meilisearch-data/_data"

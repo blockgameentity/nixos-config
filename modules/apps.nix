@@ -1,7 +1,15 @@
 { config, lib, pkgs, ... }:
 let
   cfg = config.desu;
-  compose = "${pkgs.docker-compose}/bin/docker-compose --project-name fluxer --env-file /var/lib/secrets/fluxer.env -f ${../services/fluxer}/compose.yaml";
+  # services/fluxer is vendored verbatim from the upstream self-hosting compose
+  # bundle, so the file names are upstream's: docker-compose.yml is the stack and
+  # docker-compose.proxy.yml is the overlay that puts it behind an existing
+  # reverse proxy (modules/edge.nix terminates TLS and forwards here).
+  compose =
+    "${pkgs.docker-compose}/bin/docker-compose --project-name fluxer"
+    + " --env-file /var/lib/secrets/fluxer.env"
+    + " -f ${../services/fluxer}/docker-compose.yml"
+    + " -f ${../services/fluxer}/docker-compose.proxy.yml";
 in {
   options.desu.images = {
     overleaf = lib.mkOption { type = lib.types.str; description = "Existing Overleaf image, preferably pinned by digest"; };
@@ -24,6 +32,26 @@ in {
       type = lib.types.str;
       default = "redis:7.4-alpine";
       description = "Overleaf's Redis (cache only; ioredis 4.x is compatible with 7.x).";
+    };
+  };
+  options.desu.fluxer = {
+    domain = lib.mkOption {
+      type = lib.types.str;
+      default = "chat.desu.re";
+      description = ''
+        Public hostname of the Fluxer instance. Non-secret, so it lives here (and
+        is handed to Compose through the unit's environment) rather than in
+        /var/lib/secrets/fluxer.env; modules/edge.nix serves the same name.
+      '';
+    };
+    edgeBind = lib.mkOption {
+      type = lib.types.str;
+      default = "127.0.0.1:42295";
+      description = ''
+        Loopback address the Fluxer edge container publishes: the port
+        modules/edge.nix reverse-proxies chat.desu.re to. The container itself
+        speaks plain HTTP on 8080 because TLS is terminated at the host Caddy.
+      '';
     };
   };
   options.desu.ttmlCookies = lib.mkOption {
@@ -122,11 +150,33 @@ in {
         requires = [ "docker.service" ];
         after = [ "docker.service" "network-online.target" ];
         wants = [ "network-online.target" ];
-        restartTriggers = [ ../services/fluxer/compose.yaml ../services/fluxer/Caddyfile ../services/fluxer/livekit.yaml ];
+        restartTriggers = [
+          ../services/fluxer/docker-compose.yml
+          ../services/fluxer/docker-compose.proxy.yml
+          ../services/fluxer/Caddyfile
+        ];
+        # Non-secret settings are declared here instead of in the secrets file, so
+        # they are reviewed in git and cannot drift. Compose interpolation gives
+        # the process environment precedence over --env-file, so a stale value in
+        # fluxer.env is ignored rather than silently winning.
+        environment = {
+          # Compose refuses to run the bundle without this acknowledgement.
+          FLUXER_SETTINGS_LOADED = "true";
+          FLUXER_DOMAIN = cfg.fluxer.domain;
+          FLUXER_PUBLIC_SCHEME = "https";
+          FLUXER_PUBLIC_PORT = "443";
+          # Read by the proxy overlay: publish plain HTTP on loopback only.
+          FLUXER_EDGE_BIND = cfg.fluxer.edgeBind;
+          # h3 needs UDP/443 published, which the host proxy does not do.
+          FLUXER_EDGE_PROTOCOLS = "h1 h2";
+        };
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
-          TimeoutStartSec = 600;
+          # Meilisearch migrates the search database on the first start of a new
+          # release and the API waits on 21 health gates; 20 minutes covers a
+          # restore-sized first start without masking a genuinely stuck stack.
+          TimeoutStartSec = 1200;
           ExecStart = "${compose} up -d --remove-orphans";
           ExecStop = "${compose} stop";
         };
