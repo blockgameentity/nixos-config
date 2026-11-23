@@ -33,69 +33,72 @@
   # Must be >= RAM + a couple of GiB, otherwise `systemctl hibernate` fails at
   # runtime with "Not enough swap space". This machine reports 13 GiB usable, so
   # the 32 GiB LV created in the README block is comfortable.
-  swapDevices = [ { device = "/dev/vg0/swap"; } ];
-  boot.resumeDevice = "/dev/vg0/swap";
+  swapDevices = [ { device = "/dev/mapper/vg0-swap"; } ];
+  boot.resumeDevice = "/dev/mapper/vg0-swap";
 
   fileSystems."/" = {
-    device = "/dev/vg0/root";
+    device = "/dev/mapper/vg0-root";
     fsType = "btrfs";
     options = [ "subvol=@" "noatime" "compress=zstd:1" ];
   };
 
   # Store on its own subvolume: rolling / back must not roll the store back.
   fileSystems."/nix" = {
-    device = "/dev/vg0/root";
+    device = "/dev/mapper/vg0-root";
     fsType = "btrfs";
     options = [ "subvol=@nix" "noatime" "compress=zstd:1" ];
     neededForBoot = true;
   };
 
   fileSystems."/home" = {
-    device = "/dev/vg0/root";
+    device = "/dev/mapper/vg0-root";
     fsType = "btrfs";
     options = [ "subvol=@home" "noatime" "compress=zstd:1" ];
   };
 
   fileSystems."/root" = {
-    device = "/dev/vg0/root";
+    device = "/dev/mapper/vg0-root";
     fsType = "btrfs";
     options = [ "subvol=@root" "noatime" "compress=zstd:1" ];
   };
 
   fileSystems."/srv" = {
-    device = "/dev/vg0/root";
+    device = "/dev/mapper/vg0-root";
     fsType = "btrfs";
     options = [ "subvol=@srv" "noatime" "compress=zstd:1" ];
   };
 
   fileSystems."/var/cache" = {
-    device = "/dev/vg0/root";
+    device = "/dev/mapper/vg0-root";
     fsType = "btrfs";
     options = [ "subvol=@cache" "noatime" "compress=zstd:1" ];
   };
 
   fileSystems."/var/log" = {
-    device = "/dev/vg0/root";
+    device = "/dev/mapper/vg0-root";
     fsType = "btrfs";
     options = [ "subvol=@log" "noatime" "compress=zstd:1" ];
     neededForBoot = true;
   };
 
   fileSystems."/var/tmp" = {
-    device = "/dev/vg0/root";
+    device = "/dev/mapper/vg0-root";
     fsType = "btrfs";
     options = [ "subvol=@tmp" "noatime" "compress=zstd:1" ];
   };
 
   fileSystems."/boot" = {
-    device = "/dev/disk/by-label/boot";
+    device = "/dev/disk/by-uuid/0B3E-2E5A";
     fsType = "vfat";
     options = [ "fmask=0077" "dmask=0077" ];
   };
 
-  # From lspci: SK hynix NVMe (nvme), AMD FCH SATA (ahci), Renoir/Cezanne USB
-  # (xhci_pci); sd_mod and usbhid for storage and rescue input.
-  boot.initrd.availableKernelModules = [ "xhci_pci" "ahci" "nvme" "usbhid" "sd_mod" ];
+  # From the machine's own `nixos-generate-config` output: SK hynix NVMe (nvme),
+  # AMD FCH SATA (ahci), Renoir/Cezanne USB (xhci_pci), usb_storage so a stick or
+  # an external enclosure is readable in stage 1, and kvm-amd loaded at boot for
+  # the VMs/emulators this box runs.
+  boot.initrd.availableKernelModules = [ "nvme" "xhci_pci" "ahci" "usbhid" "usb_storage" "sd_mod" ];
+  boot.kernelModules = [ "kvm-amd" ];
 
   # Confirmed on the machine: `vendor_id: AuthenticAMD` (Ryzen, Radeon iGPU at
   # 05:00.0, RTX 3060 Mobile dGPU, MT7921 wifi).

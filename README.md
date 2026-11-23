@@ -116,7 +116,7 @@ subvolumes because it runs containers; the workstations keep eight:
 `@docker` (`/var/lib/docker`) and `@lib` (`/var/lib/containers`) exist only on the server:
 they keep container state out of a root rollback, and nothing else runs containers.
 
-Every block below addresses the disk by **device node** (`/dev/nvme0n1p2`, `/dev/vg0/root`,
+Every block below addresses the disk by **device node** (`/dev/nvme0n1p2`, `/dev/mapper/vg0-root`,
 `/dev/mapper/cryptroot`), not by `/dev/disk/by-label/...`. The labels are still required and are
 still set (`mkfs.btrfs -L nixos`, `mkfs.vfat -n boot`, `luksFormat --label cryptroot`), because
 `hardware-configuration.nix` mounts everything by label at boot. The install-time commands avoid
@@ -212,27 +212,27 @@ pvcreate /dev/mapper/cryptroot
 vgcreate vg0 /dev/mapper/cryptroot
 lvcreate -L 32G -n swap vg0        # MUST be >= RAM + 2 GiB, see "Hibernation" below
 lvcreate -l 100%FREE -n root vg0
-mkfs.btrfs -L nixos /dev/vg0/root
-mkswap /dev/vg0/swap
+mkfs.btrfs -L nixos /dev/mapper/vg0-root
+mkswap /dev/mapper/vg0-swap
 
-mount -o subvolid=5 /dev/vg0/root /mnt
+mount -o subvolid=5 /dev/mapper/vg0-root /mnt
 for sv in @ @nix @home @root @srv @cache @log @tmp; do
   btrfs subvolume create /mnt/$sv
 done
 umount /mnt
 
 OPTS=noatime,compress=zstd:1
-mount -o "$OPTS",subvol=@ /dev/vg0/root /mnt
+mount -o "$OPTS",subvol=@ /dev/mapper/vg0-root /mnt
 mkdir -p /mnt/{nix,home,root,srv,var/{cache,log,tmp},boot}
-mount -o "$OPTS",subvol=@nix   /dev/vg0/root /mnt/nix
-mount -o "$OPTS",subvol=@home  /dev/vg0/root /mnt/home
-mount -o "$OPTS",subvol=@root  /dev/vg0/root /mnt/root
-mount -o "$OPTS",subvol=@srv   /dev/vg0/root /mnt/srv
-mount -o "$OPTS",subvol=@cache /dev/vg0/root /mnt/var/cache
-mount -o "$OPTS",subvol=@log   /dev/vg0/root /mnt/var/log
-mount -o "$OPTS",subvol=@tmp   /dev/vg0/root /mnt/var/tmp
+mount -o "$OPTS",subvol=@nix   /dev/mapper/vg0-root /mnt/nix
+mount -o "$OPTS",subvol=@home  /dev/mapper/vg0-root /mnt/home
+mount -o "$OPTS",subvol=@root  /dev/mapper/vg0-root /mnt/root
+mount -o "$OPTS",subvol=@srv   /dev/mapper/vg0-root /mnt/srv
+mount -o "$OPTS",subvol=@cache /dev/mapper/vg0-root /mnt/var/cache
+mount -o "$OPTS",subvol=@log   /dev/mapper/vg0-root /mnt/var/log
+mount -o "$OPTS",subvol=@tmp   /dev/mapper/vg0-root /mnt/var/tmp
 mount -o fmask=0077,dmask=0077 /dev/nvme0n1p1 /mnt/boot
-swapon /dev/vg0/swap               # so nixos-generate-config sees it
+swapon /dev/mapper/vg0-swap               # so nixos-generate-config sees it
 ```
 
 `allowDiscards = true` is set on the LUKS device so the weekly `fstrim` reaches the SSD. That
@@ -297,7 +297,7 @@ btrfs swap file there). Two hard requirements:
    changes.
 
 Resume works with LUKS because stage 1 unlocks `cryptroot` and activates `vg0` before
-`systemd-hibernate-resume` reads `resume=/dev/vg0/swap`. zswap sits in front of normal swap
+`systemd-hibernate-resume` reads `resume=/dev/mapper/vg0-swap`. zswap sits in front of normal swap
 pages, not in front of the hibernation image (swsusp writes that directly to the block
 device), so the compression pool does not have to be drained first.
 
