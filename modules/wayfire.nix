@@ -110,6 +110,9 @@ in {
     # output object alive: swayidle therefore cannot tear down a bar or reset the
     # refresh rate, which is what `wlr-randr --off` used to do.
     pkgs.wlr-randr
+    # xrandr: outputs.sh marks the ultrawide as Xwayland's primary, which is
+    # where Steam and most games open.
+    pkgs.xrandr
     wlopm
 
     # Screenshot and screencast tooling. slurp doubles as the output picker for

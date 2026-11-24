@@ -142,126 +142,126 @@ label = "󰐥"
 on_click = "!systemctl poweroff"
 
 # ============================================================
-# Dell AW3425DW OLED ultrawide (DP-1): same bar, but it auto-hides after 2 s
+# Dell AW3425DW OLED ultrawide (DP-2): same bar, but it auto-hides after 2 s
 # without the pointer, for burn-in protection. Move the pointer to the top edge
 # to reveal it. (0.19 has no scroll-only reveal; the old autohide_listener key
 # does not exist and was ignored.)
 # ============================================================
-[monitors.DP-1]
+[monitors.DP-2]
 position = "top"
 height = 34
 popup_gap = 6
 autohide = 2000
 
-[[monitors.DP-1.start]]
+[[monitors.DP-2.start]]
 type = "menu"
 label = ""
 app_icon_size = 20
 
-[[monitors.DP-1.start]]
+[[monitors.DP-2.start]]
 type = "launcher"
 favorites = ["firefox"]
 icon_size = 20
 
-[monitors.DP-1.start.truncate_popup]
+[monitors.DP-2.start.truncate_popup]
 mode = "middle"
 max_length = 40
 
-[[monitors.DP-1.start]]
+[[monitors.DP-2.start]]
 type = "music"
 player_type = "mpris"
 format = "{title} · {artist}"
 
-[monitors.DP-1.start.truncate]
+[monitors.DP-2.start.truncate]
 mode = "end"
 max_length = 40
 
-[[monitors.DP-1.center]]
+[[monitors.DP-2.center]]
 type = "clock"
 format = "%a %d/%m  %H:%M"
 format_popup = "%H:%M:%S"
 
-[[monitors.DP-1.end]]
+[[monitors.DP-2.end]]
 type = "sys_info"
 format = [
     "󰓅 {cpu_percent}%",
     "󰍛 {memory_percent}%",
 ]
 
-[monitors.DP-1.end.interval]
+[monitors.DP-2.end.interval]
 cpu = 2
 memory = 5
 
-[[monitors.DP-1.end]]
+[[monitors.DP-2.end]]
 type = "volume"
 format = "{icon} {percentage}%"
 mute_format = "{icon} {percentage}%"
 show_sources = false
 
-[monitors.DP-1.end.icons]
+[monitors.DP-2.end.icons]
 mic_volume = "󰍬"
 mic_muted = "󰍭"
 
-[[monitors.DP-1.end]]
+[[monitors.DP-2.end]]
 type = "clipboard"
 max_items = 8
 icon_size = 16
 
-[monitors.DP-1.end.truncate]
+[monitors.DP-2.end.truncate]
 mode = "end"
 length = 40
 
-[[monitors.DP-1.end]]
+[[monitors.DP-2.end]]
 type = "tray"
 icon_size = 16
 
-[[monitors.DP-1.end]]
+[[monitors.DP-2.end]]
 type = "notifications"
 show_count = true
 
-[[monitors.DP-1.end]]
+[[monitors.DP-2.end]]
 type = "custom"
 name = "power-menu"
 class = "power-menu"
 
-[[monitors.DP-1.end.bar]]
+[[monitors.DP-2.end.bar]]
 type = "button"
 name = "power-btn"
 label = "󰐥"
 on_click = "popup:toggle"
 
-[[monitors.DP-1.end.popup]]
+[[monitors.DP-2.end.popup]]
 type = "box"
 orientation = "vertical"
 
-[[monitors.DP-1.end.popup.widgets]]
+[[monitors.DP-2.end.popup.widgets]]
 type = "label"
 name = "header"
 label = "Power"
 
-[[monitors.DP-1.end.popup.widgets]]
+[[monitors.DP-2.end.popup.widgets]]
 type = "box"
 name = "buttons"
 
-[[monitors.DP-1.end.popup.widgets.widgets]]
+[[monitors.DP-2.end.popup.widgets.widgets]]
 type = "button"
 class = "power-btn"
 label = "󰌾"
 on_click = "!swaylock -f -c 000000"
 
-[[monitors.DP-1.end.popup.widgets.widgets]]
+[[monitors.DP-2.end.popup.widgets.widgets]]
 type = "button"
 class = "power-btn"
 label = "󰤄"
 on_click = "!systemctl suspend"
 
-[[monitors.DP-1.end.popup.widgets.widgets]]
+[[monitors.DP-2.end.popup.widgets.widgets]]
 type = "button"
 class = "power-btn"
 label = "󰜉"
 on_click = "!systemctl reboot"
 
-[[monitors.DP-1.end.popup.widgets.widgets]]
+[[monitors.DP-2.end.popup.widgets.widgets]]
 type = "button"
 class = "power-btn danger"
 label = "󰐥"
