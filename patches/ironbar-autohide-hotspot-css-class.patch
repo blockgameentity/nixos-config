@@ -1,0 +1,14 @@
+--- a/src/bar.rs
++++ b/src/bar.rs
+@@ -269,6 +269,11 @@
+ 
+         hotspot_window.set_opacity(0.01);
+         hotspot_window.set_decorated(false);
++        // A GTK4 window that draws nothing never attaches a buffer, so the
++        // compositor never maps it and it gets no pointer input. Give the
++        // hotspot a class the stylesheet can paint (its opacity keeps it
++        // invisible).
++        hotspot_window.add_css_class("autohide-hotspot");
+ 
+         let (w, h) = match self.position {
+             BarPosition::Top | BarPosition::Bottom => (0, 5),

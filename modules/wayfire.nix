@@ -40,11 +40,18 @@
   # bar left its autohide hotspot window behind. Every time the OLED drops off
   # DP (sleep, panel refresh) ironbar rebuilds its bar, and the orphaned strip
   # stays stacked over the new one, swallowing the scroll meant to reveal it.
+  #
+  # The fourth is local, not upstream: it gives the hotspot window a CSS class
+  # (`autohide-hotspot`) so style.css can paint it. ironbar/style.css makes
+  # `.background` (every GTK window) transparent, and a GTK4 window that draws
+  # nothing never attaches a buffer, so Wayfire never mapped the hotspot and it
+  # got no pointer events at all - no reveal, by hover or by scroll.
   ironbar = pkgs.ironbar.overrideAttrs (old: {
     patches = (old.patches or []) ++ [
       ../patches/ironbar-launcher-stale-windows.patch
       ../patches/ironbar-autohide-reveal-on-scroll.patch
       ../patches/ironbar-autohide-close-hotspot.patch
+      ../patches/ironbar-autohide-hotspot-css-class.patch
     ];
   });
 

@@ -47,6 +47,14 @@
     background-color: transparent;
 }
 
+/* The OLED's autohide reveal strip (class from
+   patches/ironbar-autohide-hotspot-css-class.patch). It must draw something,
+   or GTK never gives it a buffer and Wayfire never maps it, so it never sees
+   the scroll. ironbar sets its window opacity to 0.01, so this stays invisible. */
+window.autohide-hotspot {
+    background-color: #000000;
+}
+
 #bar {
     background-color: var(--bg);
     color: var(--fg);
