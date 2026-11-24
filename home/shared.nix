@@ -186,6 +186,7 @@
     android-tools # adb
     scrcpy
     croc
+    magic-wormhole # wormhole send/receive
     dog # DNS client
     imagemagick
     ipinfo # ipinfo-cli
