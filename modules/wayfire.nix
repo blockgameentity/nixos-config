@@ -86,6 +86,20 @@ in {
     # Wayland greeter: no X server, matching the Wayland-only session variables
     # in modules/graphical.nix.
     wayland.enable = true;
+    settings = {
+      # The greeter is kwin_wayland, which resolves its cursor theme from
+      # XCURSOR_THEME - nothing sets it for the sddm user (there is no
+      # /var/lib/sddm/.config/kcminputrc), and the module only writes a
+      # CursorTheme when services.displayManager.sddm.theme == "breeze". Result on
+      # a machine without KDE: a completely invisible mouse pointer on the login
+      # screen. Both knobs are set here; the layer-shell line is the module's own
+      # GreeterEnvironment value and must be kept when overriding it.
+      General.GreeterEnvironment = "QT_WAYLAND_SHELL_INTEGRATION=layer-shell XCURSOR_THEME=Adwaita XCURSOR_SIZE=24";
+      Theme = {
+        CursorTheme = "Adwaita";
+        CursorSize = 24;
+      };
+    };
   };
   # SDDM only offers sessions whose packages are listed here: the list of valid
   # `defaultSession` names is built from these `providedSessions` attributes, not

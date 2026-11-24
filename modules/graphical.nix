@@ -136,7 +136,17 @@
     # bitwarden, zed, firefox all ship Electron/GTK frontends here).
     NIXOS_OZONE_WL = "1";
     MOZ_ENABLE_WAYLAND = "1";
+    # Same cursor theme the SDDM greeter is told to use (modules/wayfire.nix), so
+    # the pointer does not change shape at login. Adwaita is installed below.
+    XCURSOR_THEME = "Adwaita";
+    XCURSOR_SIZE = "24";
   };
+
+  # Adwaita cursors in the system profile. kwin_wayland, which draws the SDDM
+  # login screen, resolves cursor themes through XDG_DATA_DIRS/icons; with no
+  # theme installed there it draws no pointer at all - the "no mouse cursor in
+  # SDDM" bug.
+  environment.systemPackages = [ pkgs.adwaita-icon-theme ];
 
   # sched_ext scheduler: bpfland as the default, managed by scx_loader (which
   # also exposes `scxctl` for switching at runtime). Requires kernel >= 6.12,
