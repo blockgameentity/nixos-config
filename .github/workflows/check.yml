@@ -35,6 +35,6 @@ jobs:
       - name: Flake check (evaluation only)
         run: nix flake check --no-build
       - name: Cheap gates (preflight tests, runner tests, config evaluation)
-        run: nix build -L .#checks.x86_64-linux --no-link
+        run: nix build -L --no-link .#checks.x86_64-linux.config-eval .#checks.x86_64-linux.preflight-tests .#checks.x86_64-linux.runner-tests
       - name: Evaluate the macOS runner configuration
         run: nix eval --raw .#darwinConfigurations.ci-mac.system.drvPath
