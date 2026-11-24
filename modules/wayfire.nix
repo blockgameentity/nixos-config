@@ -52,6 +52,10 @@ in {
     swaybg # wallpaper.sh
     jq # wallpaper.sh and slideshow.sh parse wlr-randr output with it
     ironbar
+    # ironbar's config.toml sets icon_theme = "Paper" for the bar and for the
+    # per-monitor block. A missing theme does not degrade gracefully: the battery
+    # widget and every launcher/menu entry render with a blank icon.
+    paper-icon-theme
 
     # Output management. wlr-randr applies the layout (scripts/outputs.sh), wlopm
     # does DPMS. wlopm goes through wlr-output-power-management, which keeps the
