@@ -6,6 +6,9 @@
   lib,
   ...
 }: {
+  # Sound processing for the GigaWorks T20 speakers on the onboard line out.
+  imports = [ ./gigaworks-eq.nix ];
+
   # No global `nixpkgs.config.cudaSupport`: neither cache.nixos.org nor
   # Chaotic-Nyx builds packages with it, so it turned firefox, obs-studio,
   # onnxruntime, opencv, openvino, TensorRT, cuDNN and NCCL into hours of local
