@@ -114,7 +114,7 @@
   # the graphical editor is zed (home/graphical.nix).
   programs.helix = {
     enable = true;
-    settings.editor.theme = "gruvbox_dark_hard";
+    settings.theme = "gruvbox_dark_hard"; # top-level key, not under [editor]
   };
 
   # Same SSH aliases on every host. Only aliases and directives live here - key

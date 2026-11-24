@@ -79,6 +79,7 @@
     zed-editor
     imhex
     signal-desktop
+    teams-for-linux # school
     insomnia
     qbittorrent
     prismlauncher
