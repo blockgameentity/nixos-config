@@ -36,6 +36,8 @@
       "nvidia-x11"
       "nvidia-settings"
       "nvidia-persistenced"
+      # Anthropic's CLI (home/graphical.nix); unfree, native binary.
+      "claude-code"
     ];
 
   # No autologin, by decision. `services.getty.autologinUser` and

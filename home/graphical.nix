@@ -58,6 +58,7 @@
   # Applications used on both machines. Steam is absent on purpose: it is a
   # NixOS service (programs.steam.enable in modules/graphical.nix), not a package.
   home.packages = with pkgs; [
+    claude-code # `claude`; unfree, allowed by name in modules/graphical.nix
     libsecret # secret-tool: store/look up gnome-keyring entries from a shell
     seahorse # keyring frontend: create, unlock and inspect keyrings
     firefox
