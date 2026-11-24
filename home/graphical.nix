@@ -100,6 +100,7 @@
     obsidian
     bitwarden-desktop
     celluloid
+    (callPackage ../packages/limusic.nix {}) # YouTube Music client; wraps the release AppImage
     zed-editor
     imhex
     signal-desktop
