@@ -35,10 +35,16 @@
   # `autohide_listener = "hover" | "scroll" | "click"`, used on the OLED so the
   # bar only comes back on a scroll at the top edge, not on every pointer pass.
   # Drop it once nixpkgs ships an ironbar newer than 0.19.1.
+  #
+  # The third is upstream PR #1672 (fixes #1671, also after 0.19.1): closing a
+  # bar left its autohide hotspot window behind. Every time the OLED drops off
+  # DP (sleep, panel refresh) ironbar rebuilds its bar, and the orphaned strip
+  # stays stacked over the new one, swallowing the scroll meant to reveal it.
   ironbar = pkgs.ironbar.overrideAttrs (old: {
     patches = (old.patches or []) ++ [
       ../patches/ironbar-launcher-stale-windows.patch
       ../patches/ironbar-autohide-reveal-on-scroll.patch
+      ../patches/ironbar-autohide-close-hotspot.patch
     ];
   });
 
