@@ -52,10 +52,10 @@ in {
     swaybg # wallpaper.sh
     jq # wallpaper.sh and slideshow.sh parse wlr-randr output with it
     ironbar
-    # ironbar's config.toml sets icon_theme = "Paper" for the bar and for the
-    # per-monitor block. A missing theme does not degrade gracefully: the battery
-    # widget and every launcher/menu entry render with a blank icon.
-    paper-icon-theme
+    # ironbar's launcher and menu widgets shell out to `gtk-launch {app_name}`
+    # (its default launch_command); nixpkgs only puts that binary on PATH via
+    # gtk3. Without it every click in the bar silently does nothing.
+    gtk3
 
     # Output management. wlr-randr applies the layout (scripts/outputs.sh), wlopm
     # does DPMS. wlopm goes through wlr-output-power-management, which keeps the

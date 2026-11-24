@@ -44,6 +44,9 @@ box, button, label, calendar {
 
 #bar, popover contents {
     background: var(--gradient);
+    /* Symbolic icons (network, bluetooth, volume) are recoloured from this value;
+       without it they inherit whatever the GTK theme calls a foreground colour. */
+    color: var(--color-white);
 }
 
 scale.horizontal highlight {

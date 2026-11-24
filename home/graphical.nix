@@ -36,13 +36,10 @@
       name = "Adwaita-dark";
       package = pkgs.gnome-themes-extra;
     };
-    # Paper: the icon theme the old install used, and the one ironbar's config.toml
-    # names. Keeping GTK apps on the same theme avoids two icon languages on one
-    # screen (and a themed bar next to unthemed apps).
-    iconTheme = {
-      name = "Paper";
-      package = pkgs.paper-icon-theme;
-    };
+    # Adwaita, not Paper: Paper replaces every application icon with its own
+    # flat glyph (Firefox stops looking like Firefox) and has no icons for the
+    # menu's Accessories/Education categories. Adwaita is also what the SDDM
+    # cursor theme and ironbar's icon_theme use, so bar and apps match.
     colorScheme = "dark";
   };
 

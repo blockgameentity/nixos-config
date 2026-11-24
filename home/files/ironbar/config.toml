@@ -3,13 +3,15 @@
 # Currently applies to DP-2 and portrait HDMI-A-1.
 # ============================================================
 position = "top"
-icon_theme = "Paper"
+icon_theme = "Adwaita"
 
-# ironbar's launcher is a front-end only: with no backend configured the button
-# renders and clicks do nothing. "gtk" is the built-in one and needs no extra
-# binary; switch to "walker" to reuse the Super+X launcher already running.
+# ironbar 0.19 launches both the launcher widget and the menu widget through this
+# command, and its default is `gtk-launch {app_name}` - a binary nixpkgs does not
+# put on PATH unless gtk3 is in systemPackages. It is (modules/wayfire.nix), and
+# the command is spelled out here so the dependency stays visible: with no
+# `gtk-launch`, clicking an entry in the bar does nothing at all.
 [launcher]
-type = "gtk"
+launch_command = "gtk-launch {app_name}"
 
 [[start]]
 type = "menu"
@@ -107,7 +109,7 @@ type = "notifications"
 # ============================================================
 [monitors.DP-1]
 position = "top"
-icon_theme = "Paper"
+icon_theme = "Adwaita"
 autohide = 2000
 autohide_listener = "scroll"
 
