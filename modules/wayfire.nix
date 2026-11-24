@@ -130,6 +130,12 @@ in {
     wlogout # super+esc
   ]);
 
+  # swaylock authenticates through its own PAM service. Installing the package
+  # does not create one (programs.sway would), and without /etc/pam.d/swaylock
+  # PAM falls back to `other`, which denies everything: every password, the
+  # right one included, is reported wrong and the screen stays locked.
+  security.pam.services.swaylock = {};
+
   # Sessions: the wayfire.desktop above lands in /run/current-system/sw, so a
   # display manager can offer it. SDDM is also what asks for the account password
   # (modules/graphical.nix has no autologin), and that password is what
@@ -139,6 +145,11 @@ in {
     # Wayland greeter: no X server, matching the Wayland-only session variables
     # in modules/graphical.nix.
     wayland.enable = true;
+    # The nixpkgs default greeter compositor is Weston in kiosk mode, which on
+    # these hosts draws no pointer at all regardless of XCURSOR_* / Theme.Cursor*.
+    # kwin_wayland honours them, and the module wires up everything else it needs
+    # (layer-shell-qt and GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell).
+    wayland.compositor = "kwin";
     settings = {
       # The greeter is kwin_wayland running as the sddm user, so its cursor theme
       # comes from XCURSOR_THEME (there is no /var/lib/sddm/.config/kcminputrc),
