@@ -505,12 +505,16 @@ default scheduler. `czkawka` is graphical-only even though it also ships
 On the laptop, Steam and Obsidian are the only unfree packages and are allowed
 through `nixpkgs.config.allowUnfreePredicate` for those two names.
 
-The desktop adds `modules/desktop.nix` / `home/desktop.nix` on top: CUDA
-(`cudaSupport = true`, `cudatoolkit`), the NVIDIA driver (open kernel modules,
-modesetting), and alcom + Unity Hub. Because CUDA ships a family of EULA
-packages (cccl, cuDNN, cuBLAS, NCCL) whose names move between releases, the
-desktop allows unfree packages outright instead of enumerating them.
-**Building the desktop configuration downloads several GB of CUDA closure.**
+The desktop adds `modules/desktop.nix` / `home/desktop.nix` on top: the CUDA
+toolkit (`cudatoolkit`), the NVIDIA driver (open kernel modules, modesetting),
+and alcom + Unity Hub. `nixpkgs.config.cudaSupport` is deliberately **not** set
+globally: no configured binary cache builds packages with it, so it made firefox,
+obs-studio, onnxruntime, opencv and TensorRT compile locally for hours. CUDA is
+enabled per package instead (`.override { cudaSupport = true; }`; currently only
+btop, for its GPU panel). Because the toolkit ships a family of EULA packages
+(cccl, cuBLAS, ...) whose names move between releases, the desktop allows unfree
+packages outright instead of enumerating them.
+**Building the desktop configuration still downloads several GB of CUDA toolkit.**
 
 The server imports `modules/base.nix` only: it gets the shell, prompt, editor,
 git, toolchains and CLI tools, but no terminal emulator, font, GUI app or

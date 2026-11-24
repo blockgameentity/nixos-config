@@ -1,17 +1,29 @@
 # Desktop-only additions on top of modules/graphical.nix. The laptop must not
-# import this: CUDA rebuilds most CUDA-aware packages locally and the NVIDIA
-# driver only applies to this machine.
+# import this: the NVIDIA driver, the CUDA toolkit and the unfree policy below
+# only apply to this machine.
 {
   config,
   lib,
   ...
 }: {
-  # Build CUDA-aware packages (torch, cupy, ...) against the toolkit.
-  nixpkgs.config.cudaSupport = true;
+  # No global `nixpkgs.config.cudaSupport`: neither cache.nixos.org nor
+  # Chaotic-Nyx builds packages with it, so it turned firefox, obs-studio,
+  # onnxruntime, opencv, openvino, TensorRT, cuDNN and NCCL into hours of local
+  # compiling on every nixpkgs bump. Enable CUDA per package instead, here or
+  # with `.override { cudaSupport = true; }` where the package is installed
+  # (e.g. torch in a project's devShell). obs-studio needs nothing: it links its
+  # NVENC plugins against the driver unconditionally.
+  nixpkgs.overlays = [
+    (final: prev: {
+      # GPU panel: btop dlopens libnvidia-ml, found only via the driver runpath
+      # that cudaSupport adds. Small C++ build, no CUDA closure.
+      btop = prev.btop.override { cudaSupport = true; };
+    })
+  ];
 
   # modules/graphical.nix allows only steam, obsidian and the NVIDIA driver. On
-  # this host that narrow list is not workable: CUDA ships a whole family of EULA
-  # packages (cccl, cuDNN, cuBLAS, NCCL, ...) plus Unity Hub, whose names move
+  # this host that narrow list is not workable: cudatoolkit ships a whole family
+  # of EULA packages (cccl, cuBLAS, ...) plus Unity Hub, whose names move
   # between nixpkgs releases. The desktop therefore allows unfree packages
   # outright; the laptop keeps the narrow predicate.
   nixpkgs.config.allowUnfree = lib.mkForce true;
