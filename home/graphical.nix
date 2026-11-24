@@ -46,6 +46,7 @@
   # "default" theme gets Adwaita), GTK's cursor-theme setting and the XCURSOR_*
   # variables, matching modules/graphical.nix, SDDM and [input] in wayfire.ini.
   home.pointerCursor = {
+    enable = true;
     name = "Adwaita";
     package = pkgs.adwaita-icon-theme;
     size = 24;
