@@ -1,5 +1,5 @@
-# Home profile for the Wayfire session on the desktop. Imported by
-# modules/wayfire.nix; the server and the laptop do not use it.
+# Home profile for the Wayfire session on both workstations. Imported by
+# modules/wayfire.nix; the server does not use it.
 #
 # Everything referenced here comes from home/files/ verbatim, so the working
 # config from the old install can be diffed instead of retyped. Adaptations made
@@ -42,6 +42,22 @@
       exec ${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1
     '')
   ];
+
+  # graphical-session.target has RefuseManualStart=yes, so the old
+  # `systemctl --user start graphical-session.target` in [autostart] always
+  # failed - and xdg-desktop-portal (Requisite=graphical-session.target) with it:
+  # no screencast, no portal file chooser, no Settings portal. A compositor
+  # target that BindsTo it is the standard way in (Home Manager's sway/hyprland
+  # modules do the same); the 0_env line in wayfire.ini starts it.
+  systemd.user.targets.wayfire-session = {
+    Unit = {
+      Description = "Wayfire compositor session";
+      Documentation = ["man:systemd.special(7)"];
+      BindsTo = ["graphical-session.target"];
+      Wants = ["graphical-session-pre.target"];
+      After = ["graphical-session-pre.target"];
+    };
+  };
 
   # Wallpapers are user state, not config, so they are not in the repo (the PNG
   # alone is 8 MiB). wallpaper.sh and slideshow.sh look for them here first, and

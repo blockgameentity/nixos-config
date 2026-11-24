@@ -23,6 +23,47 @@
   # When #492535 lands: delete packages/wayfire.nix, use pkgs.wayfire, and check
   # whether the patch is still needed (it targets 0.11.0 source).
   wayfire = pkgs.callPackage ../packages/wayfire.nix {};
+
+  # ironbar 0.19.1's launcher never resets a pinned (favorite) item when its
+  # last window closes: the bar button keeps its window count and the hover popup
+  # keeps the closed window's entry, so Firefox still "has" a window after it is
+  # quit. Drop the patch once nixpkgs ships a release whose
+  # src/modules/launcher/mod.rs handles RemoveItem in the popup.
+  ironbar = pkgs.ironbar.overrideAttrs (old: {
+    patches = (old.patches or []) ++ [../patches/ironbar-launcher-stale-windows.patch];
+  });
+
+  # Category icon names hard-coded in ironbar 0.19's menu widget, mapped to the
+  # AdwaitaLegacy icon used for each. Legacy has no education/multimedia icon, so
+  # those two borrow the closest one.
+  ironbarMenuIcons = let
+    legacy = "${pkgs.adwaita-icon-theme-legacy}/share/icons/AdwaitaLegacy";
+    icons = {
+      applications-accessories = "applications-accessories";
+      applications-utilities = "applications-utilities";
+      applications-development = "applications-development";
+      applications-education = "accessories-dictionary";
+      applications-games = "applications-games";
+      applications-graphics = "applications-graphics";
+      applications-multimedia = "audio-x-generic";
+      applications-internet = "applications-internet";
+      applications-office = "applications-office";
+      applications-science = "applications-science";
+      applications-system = "applications-system";
+      preferences-system = "preferences-system";
+      applications-other = "applications-other";
+    };
+  in
+    pkgs.runCommand "ironbar-menu-icons" {} (lib.concatStrings (lib.mapAttrsToList (name: src: ''
+      for size in 16x16 22x22 24x24 32x32 48x48; do
+        f=$(find ${legacy}/$size -name '${src}.png' | head -n1)
+        if [ -n "$f" ]; then
+          mkdir -p $out/share/icons/hicolor/$size/apps
+          cp "$f" $out/share/icons/hicolor/$size/apps/${name}.png
+        fi
+      done
+      ls $out/share/icons/hicolor/*/apps/${name}.png >/dev/null
+    '') icons));
 in {
   # The build in systemPackages has to be the one offering the session: the
   # wayfire package installs share/wayland-sessions/wayfire.desktop whose
@@ -52,6 +93,13 @@ in {
     swaybg # wallpaper.sh
     jq # wallpaper.sh and slideshow.sh parse wlr-randr output with it
     ironbar
+    # ironbar's menu widget draws each category with a full-colour
+    # `applications-<category>` icon, which adwaita-icon-theme dropped in 3.x/46.
+    # These are copied from adwaita-icon-theme-legacy into hicolor - the fallback
+    # every theme ends in - rather than installing a full icon theme, so no app
+    # icon (firefox, ghostty, ...) can be replaced: hicolor is consulted last and
+    # these names belong to no application.
+    ironbarMenuIcons
     # ironbar's launcher and menu widgets shell out to `gtk-launch {app_name}`
     # (its default launch_command); nixpkgs only puts that binary on PATH via
     # gtk3. Without it every click in the bar silently does nothing.
@@ -131,12 +179,17 @@ in {
   # in wayfire.ini is what gives the service the environment it needs.
   xdg.portal = {
     enable = true;
-    extraPortals = [pkgs.xdg-desktop-portal-wlr];
+    # wlr only implements ScreenCast and Screenshot. gtk supplies the rest -
+    # FileChooser (Firefox/Electron/flatpak "Open file" dialogs) and Settings,
+    # which serves the prefer-dark color-scheme from dconf to libadwaita apps.
+    extraPortals = [pkgs.xdg-desktop-portal-wlr pkgs.xdg-desktop-portal-gtk];
     # Keyed by XDG_CURRENT_DESKTOP. Wayfire's session file ships
     # DesktopNames=Wayfire;wlroots and the lookup is case-insensitive, so
     # "wayfire" matches it.
     config.wayfire = {
-      default = ["wlr"];
+      default = ["gtk"];
+      "org.freedesktop.impl.portal.ScreenCast" = ["wlr"];
+      "org.freedesktop.impl.portal.Screenshot" = ["wlr"];
       # Wayfire handles its own idle/screensaver and has no Inhibit backend;
       # "none" is what upstream ships in wayfire-portals.conf.
       "org.freedesktop.impl.portal.Inhibit" = ["none"];

@@ -1,13 +1,12 @@
-# Laptop host. Imported by mkHost in flake.nix once the flake output for
-# `laptop` is uncommented. Keep machine-specific policy here; shared defaults
+# Laptop host. Imported by mkHost in flake.nix (nixosConfigurations.laptop).
+# Keep machine-specific policy here; shared defaults
 # come from ../../modules/base.nix.
 { ... }: {
   # hardware-configuration.nix and modules/base.nix are added by mkHost, not here.
 
   # Display, terminal emulator and font baseline shared with the desktop, plus
   # the CachyOS kernel from Chaotic-Nyx and the Wayfire session
-  # (modules/wayfire.nix). Wayfire lives on its own branch until it has proven
-  # itself against Plasma; see docs/wayfire.md.
+  # (modules/wayfire.nix).
   imports = [
     ../../modules/graphical.nix
     ../../modules/wayfire.nix
@@ -49,6 +48,9 @@
   # but tailscale0). The hash above is what the login prompt checks.
   services.openssh = {
     enable = true;
+    # The module defaults openFirewall to true, which opened 22 (with password
+    # login) on every interface, wifi included. Only tailscale0 opens it (below).
+    openFirewall = false;
     settings = {
       PasswordAuthentication = true;
       KbdInteractiveAuthentication = false;

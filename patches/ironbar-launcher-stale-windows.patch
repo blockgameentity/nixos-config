@@ -1,0 +1,30 @@
+--- a/src/modules/launcher/mod.rs	2026-11-24 01:57:03.325870685 +0100
++++ b/src/modules/launcher/mod.rs	2026-11-24 01:57:15.107757358 +0100
+@@ -498,6 +498,7 @@
+                             if let Some(button) = buttons.borrow().get(&item.app_id) {
+                                 button.set_open(true);
+                                 button.set_focused(item.open_state.is_focused());
++                                write_lock!(button.menu_state).num_windows = item.windows.len();
+                             } else {
+                                 let button = ItemButton::new(
+                                     &item,
+@@ -541,6 +542,8 @@
+                             if let Some(button) = button {
+                                 if button.persistent {
+                                     button.set_open(false);
++                                    button.set_focused(false);
++                                    write_lock!(button.menu_state).num_windows = 0;
+                                     if button.show_names {
+                                         button.button.label.set_label(&app_id);
+                                     }
+@@ -681,6 +684,10 @@
+                             buttons.insert(win.id, button);
+                         }
+                     }
++                    LauncherUpdate::RemoveItem(app_id) => {
++                        debug!("Removing all windows from popup for '{app_id}'");
++                        buttons.shift_remove(&app_id);
++                    }
+                     LauncherUpdate::RemoveWindow(app_id, win_id) => {
+                         debug!("Removing window from popup for '{app_id}': {win_id}");
+ 

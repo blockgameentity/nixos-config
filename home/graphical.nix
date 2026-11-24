@@ -26,9 +26,8 @@
   # 4's gtk-interface-color-scheme into ~/.config/gtk-*/settings.ini, and sets
   # org.gnome.desktop.interface color-scheme = prefer-dark in dconf. libadwaita
   # apps (nautilus, mission-center, satty, walker) read that through the settings
-  # portal and fall back to the same gsettings key when no portal backend
-  # implements Settings, which is the case here: modules/wayfire.nix wires up
-  # only the wlr backend. The dconf half needs programs.dconf.enable, set in
+  # portal (xdg-desktop-portal-gtk serves it from this dconf key; see
+  # modules/wayfire.nix). The dconf half needs programs.dconf.enable, set in
   # modules/graphical.nix.
   gtk = {
     enable = true;
@@ -36,11 +35,21 @@
       name = "Adwaita-dark";
       package = pkgs.gnome-themes-extra;
     };
-    # Adwaita, not Paper: Paper replaces every application icon with its own
-    # flat glyph (Firefox stops looking like Firefox) and has no icons for the
-    # menu's Accessories/Education categories. Adwaita is also what the SDDM
-    # cursor theme and ironbar's icon_theme use, so bar and apps match.
+    # No iconTheme on purpose: GTK's default (Adwaita, falling back to hicolor)
+    # leaves every application's own icon alone. A full theme such as Paper
+    # replaces Firefox/Ghostty with its own glyphs. The only icons Adwaita lacks
+    # are ironbar's menu categories; modules/wayfire.nix adds just those.
     colorScheme = "dark";
+  };
+
+  # One cursor everywhere: writes ~/.icons/default (so anything asking for the
+  # "default" theme gets Adwaita), GTK's cursor-theme setting and the XCURSOR_*
+  # variables, matching modules/graphical.nix, SDDM and [input] in wayfire.ini.
+  home.pointerCursor = {
+    name = "Adwaita";
+    package = pkgs.adwaita-icon-theme;
+    size = 24;
+    gtk.enable = true;
   };
 
   # Qt gets the same treatment from the other side: the gtk3 platform theme makes

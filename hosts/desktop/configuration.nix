@@ -45,6 +45,9 @@
   # account is locked and password logins fail even though sshd accepts them.
   services.openssh = {
     enable = true;
+    # The module defaults openFirewall to true, which opened 22 (with password
+    # login) on every interface, wifi included. Only tailscale0 opens it (below).
+    openFirewall = false;
     settings = {
       PasswordAuthentication = true;
       KbdInteractiveAuthentication = false;

@@ -1,61 +1,96 @@
 # ============================================================
-# Default permanent top bar for non-OLED monitors.
-# Currently applies to DP-2 and portrait HDMI-A-1.
+# ironbar 0.19 - every key here is checked against the 0.19.1 docs/source
+# (docs/Configuration guide.md, docs/modules/*.md).
+#
+# Look: one full-width, translucent bar (Wayfire blurs what is behind it, see
+# [blur] in wayfire.ini) with the modules grouped into rounded "pills". All
+# glyphs are Material Design icons from JetBrainsMono Nerd Font Propo, one size
+# and one colour, so nothing mixes icon styles; see style.css.
+#
+# Notes:
+# - `icon_theme` is a top-level key only; a copy inside [monitors.X] is ignored.
+# - `launch_command` is a per-module option (launcher/menu) whose default is
+#   already `gtk-launch {app_name}`; gtk-launch comes from gtk3 in
+#   modules/wayfire.nix.
+# - No workspaces module: ironbar 0.19 supports it on Sway/Hyprland/Niri only,
+#   on Wayfire it renders nothing.
 # ============================================================
-position = "top"
 icon_theme = "Adwaita"
 
-# ironbar 0.19 launches both the launcher widget and the menu widget through this
-# command, and its default is `gtk-launch {app_name}` - a binary nixpkgs does not
-# put on PATH unless gtk3 is in systemPackages. It is (modules/wayfire.nix), and
-# the command is spelled out here so the dependency stays visible: with no
-# `gtk-launch`, clicking an entry in the bar does nothing at all.
-[launcher]
-launch_command = "gtk-launch {app_name}"
+position = "top"
+height = 34
+popup_gap = 6
 
 [[start]]
 type = "menu"
-label = "󱓞"
-
-[[start]]
-type = "workspaces"
+label = ""
+app_icon_size = 20
 
 [[start]]
 type = "launcher"
 favorites = ["firefox"]
+icon_size = 20
+
+[start.truncate_popup]
+mode = "middle"
+max_length = 40
+
+[[start]]
+type = "music"
+player_type = "mpris"
+format = "{title} · {artist}"
 
 [start.truncate]
 mode = "end"
-max_length = 30
+max_length = 40
 
 [[center]]
-type = "music"
-player_type = "mpris"
-
-[[end]]
-type = "battery"
-show_if = "ls /sys/class/power_supply/ | grep --quiet '^BAT'"
+type = "clock"
+format = "%a %d/%m  %H:%M"
+format_popup = "%H:%M:%S"
 
 [[end]]
 type = "sys_info"
 format = [
-    "{cpu_percent}% ",
-    "{memory_percent}% ",
+    "󰓅 {cpu_percent}%",
+    "󰍛 {memory_percent}%",
 ]
 
 [end.interval]
-cpu = 1
-
-[[end]]
-type = "clipboard"
-max_items = 5
-
-[end.truncate]
-mode = "end"
-length = 30
+cpu = 2
+memory = 5
 
 [[end]]
 type = "volume"
+format = "{icon} {percentage}%"
+mute_format = "{icon} {percentage}%"
+show_sources = false
+
+[end.icons]
+mic_volume = "󰍬"
+mic_muted = "󰍭"
+
+[[end]]
+type = "battery"
+show_if = "ls /sys/class/power_supply/ | grep --quiet '^BAT'"
+icon_size = 16
+
+[[end]]
+type = "clipboard"
+max_items = 8
+icon_size = 16
+
+[end.truncate]
+mode = "end"
+length = 40
+
+[[end]]
+type = "tray"
+icon_size = 16
+
+[[end]]
+type = "notifications"
+show_count = true
 
 [[end]]
 type = "custom"
@@ -65,7 +100,7 @@ class = "power-menu"
 [[end.bar]]
 type = "button"
 name = "power-btn"
-label = ""
+label = "󰐥"
 on_click = "popup:toggle"
 
 [[end.popup]]
@@ -75,7 +110,7 @@ orientation = "vertical"
 [[end.popup.widgets]]
 type = "label"
 name = "header"
-label = "Power menu"
+label = "Power"
 
 [[end.popup.widgets]]
 type = "box"
@@ -84,78 +119,105 @@ name = "buttons"
 [[end.popup.widgets.widgets]]
 type = "button"
 class = "power-btn"
-label = "<span>󰐥</span>"
-on_click = "!shutdown now"
+label = "󰌾"
+on_click = "!swaylock -f -c 000000"
 
 [[end.popup.widgets.widgets]]
 type = "button"
 class = "power-btn"
-label = "<span>󰜉</span>"
-on_click = "!reboot"
+# systemctl suspend hibernates on the laptop (SuspendState=disk).
+label = "󰤄"
+on_click = "!systemctl suspend"
 
-[[end]]
-type = "tray"
+[[end.popup.widgets.widgets]]
+type = "button"
+class = "power-btn"
+label = "󰜉"
+on_click = "!systemctl reboot"
 
-[[end]]
-type = "clock"
-
-[[end]]
-type = "notifications"
+[[end.popup.widgets.widgets]]
+type = "button"
+class = "power-btn danger"
+label = "󰐥"
+on_click = "!systemctl poweroff"
 
 # ============================================================
-# Dell AW3425DW OLED ultrawide (DP-1).
-# This monitor alone auto-hides for burn-in protection.
-# Reveal it by scrolling on the top-edge hotspot, not by hover.
+# Dell AW3425DW OLED ultrawide (DP-1): same bar, but it auto-hides after 2 s
+# without the pointer, for burn-in protection. Move the pointer to the top edge
+# to reveal it. (0.19 has no scroll-only reveal; the old autohide_listener key
+# does not exist and was ignored.)
 # ============================================================
 [monitors.DP-1]
 position = "top"
-icon_theme = "Adwaita"
+height = 34
+popup_gap = 6
 autohide = 2000
-autohide_listener = "scroll"
 
 [[monitors.DP-1.start]]
 type = "menu"
-label = "󱓞"
-
-[[monitors.DP-1.start]]
-type = "workspaces"
+label = ""
+app_icon_size = 20
 
 [[monitors.DP-1.start]]
 type = "launcher"
 favorites = ["firefox"]
+icon_size = 20
+
+[monitors.DP-1.start.truncate_popup]
+mode = "middle"
+max_length = 40
+
+[[monitors.DP-1.start]]
+type = "music"
+player_type = "mpris"
+format = "{title} · {artist}"
 
 [monitors.DP-1.start.truncate]
 mode = "end"
-max_length = 30
+max_length = 40
 
 [[monitors.DP-1.center]]
-type = "music"
-player_type = "mpris"
-
-[[monitors.DP-1.end]]
-type = "battery"
-show_if = "ls /sys/class/power_supply/ | grep --quiet '^BAT'"
+type = "clock"
+format = "%a %d/%m  %H:%M"
+format_popup = "%H:%M:%S"
 
 [[monitors.DP-1.end]]
 type = "sys_info"
 format = [
-    "{cpu_percent}% ",
-    "{memory_percent}% ",
+    "󰓅 {cpu_percent}%",
+    "󰍛 {memory_percent}%",
 ]
 
 [monitors.DP-1.end.interval]
-cpu = 1
-
-[[monitors.DP-1.end]]
-type = "clipboard"
-max_items = 5
-
-[monitors.DP-1.end.truncate]
-mode = "end"
-length = 30
+cpu = 2
+memory = 5
 
 [[monitors.DP-1.end]]
 type = "volume"
+format = "{icon} {percentage}%"
+mute_format = "{icon} {percentage}%"
+show_sources = false
+
+[monitors.DP-1.end.icons]
+mic_volume = "󰍬"
+mic_muted = "󰍭"
+
+[[monitors.DP-1.end]]
+type = "clipboard"
+max_items = 8
+icon_size = 16
+
+[monitors.DP-1.end.truncate]
+mode = "end"
+length = 40
+
+[[monitors.DP-1.end]]
+type = "tray"
+icon_size = 16
+
+[[monitors.DP-1.end]]
+type = "notifications"
+show_count = true
 
 [[monitors.DP-1.end]]
 type = "custom"
@@ -165,7 +227,7 @@ class = "power-menu"
 [[monitors.DP-1.end.bar]]
 type = "button"
 name = "power-btn"
-label = ""
+label = "󰐥"
 on_click = "popup:toggle"
 
 [[monitors.DP-1.end.popup]]
@@ -175,7 +237,7 @@ orientation = "vertical"
 [[monitors.DP-1.end.popup.widgets]]
 type = "label"
 name = "header"
-label = "Power menu"
+label = "Power"
 
 [[monitors.DP-1.end.popup.widgets]]
 type = "box"
@@ -184,20 +246,23 @@ name = "buttons"
 [[monitors.DP-1.end.popup.widgets.widgets]]
 type = "button"
 class = "power-btn"
-label = "<span>󰐥</span>"
-on_click = "!shutdown now"
+label = "󰌾"
+on_click = "!swaylock -f -c 000000"
 
 [[monitors.DP-1.end.popup.widgets.widgets]]
 type = "button"
 class = "power-btn"
-label = "<span>󰜉</span>"
-on_click = "!reboot"
+label = "󰤄"
+on_click = "!systemctl suspend"
 
-[[monitors.DP-1.end]]
-type = "tray"
+[[monitors.DP-1.end.popup.widgets.widgets]]
+type = "button"
+class = "power-btn"
+label = "󰜉"
+on_click = "!systemctl reboot"
 
-[[monitors.DP-1.end]]
-type = "clock"
-
-[[monitors.DP-1.end]]
-type = "notifications"
+[[monitors.DP-1.end.popup.widgets.widgets]]
+type = "button"
+class = "power-btn danger"
+label = "󰐥"
+on_click = "!systemctl poweroff"

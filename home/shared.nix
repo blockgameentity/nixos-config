@@ -58,8 +58,26 @@
   };
   # programs.gh also registers the `gh auth git-credential` helper for
   # github.com and gist.github.com; on a new machine run `gh auth login` once
-  # (the token is a secret and never lives in this repo).
-  programs.gh.enable = true;
+  # (the token is a secret and never lives in this repo; gh keeps it in the
+  # keyring / hosts.yml, which stay writable).
+  #
+  # config.yml is a read-only store symlink, so anything `gh auth login` would
+  # write there ("open .../config.yml: read-only file system") has to be
+  # declared here instead.
+  programs.gh = {
+    enable = true;
+    settings = {
+      git_protocol = "https";
+      # gh waits for its browser command to exit before it starts polling for
+      # the token. xdg-open runs Firefox in the foreground when no Firefox is
+      # open yet, so `gh auth login` hung until the whole browser was closed
+      # (and Firefox's stderr, e.g. "[GFX1-]: Decoder missing TFI", landed in
+      # the terminal). Detach it so gh returns immediately.
+      browser = "${pkgs.writeShellScript "gh-browser" ''
+        ${pkgs.util-linux}/bin/setsid -f ${pkgs.xdg-utils}/bin/xdg-open "$@" >/dev/null 2>&1
+      ''}";
+    };
+  };
 
   # delta pages git diff/log/blame through a syntax-highlighting viewer;
   # enableGitIntegration wires core.pager, interactive.diffFilter and pager.blame
