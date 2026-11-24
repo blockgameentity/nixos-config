@@ -4,9 +4,9 @@
 # are not attached. Leave the layout to Wayfire there instead of failing.
 #
 # Layout, left to right:
-#   Acer KG251Q T8ZEE0098543  1920x1080@240  landscape   x=0
+#   Acer KG251Q T8ZEE0048532  1920x1080@144  landscape   x=0      (DP; 144 Hz is its max)
 #   Dell AW3425DW 531H274     3440x1440@240  landscape   x=1920  (main)
-#   Acer KG251Q T8ZEE0048532  1920x1080@144  portrait    x=5360
+#   Acer KG251Q T8ZEE0098543  1920x1080@240  portrait    x=5360   (HDMI; has no 144 Hz mode)
 #
 # Connectors are looked up by serial, not hard-coded: the two Acers are the
 # same model, and connector names changed between installs (DP-1 -> DP-2 for
@@ -31,12 +31,12 @@ fi
 sleep 1
 
 MAIN=$(connector 531H274)
-LEFT=$(connector T8ZEE0098543)
-RIGHT=$(connector T8ZEE0048532)
+LEFT=$(connector T8ZEE0048532)
+RIGHT=$(connector T8ZEE0098543)
 
 main_at() { echo --output "$MAIN" --on --mode "3440x1440@$1" --pos 1920,0 --transform normal --scale 1; }
-left_on() { [[ -n "$LEFT" ]] && echo --output "$LEFT" --on --mode 1920x1080@239.760Hz --pos 0,0 --transform normal --scale 1; }
-right_on() { [[ -n "$RIGHT" ]] && echo --output "$RIGHT" --on --mode 1920x1080@143.981Hz --pos 5360,0 --transform 270 --scale 1; }
+left_on() { [[ -n "$LEFT" ]] && echo --output "$LEFT" --on --mode 1920x1080@143.981Hz --pos 0,0 --transform normal --scale 1; }
+right_on() { [[ -n "$RIGHT" ]] && echo --output "$RIGHT" --on --mode 1920x1080@239.760Hz --pos 5360,0 --transform 270 --scale 1; }
 off() { [[ -n "$1" ]] && echo --output "$1" --off; }
 
 restore_known_good() {
