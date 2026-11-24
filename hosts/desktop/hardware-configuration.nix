@@ -85,6 +85,6 @@
   #   options = [ "rw" "uid=1000" "gid=100" ];
   # };
 
-  boot.initrd.availableKernelModules = [ "xhci_pci" "ahci" "nvme" "usbhid" "sd_mod" ];
+  boot.initrd.availableKernelModules = [ "xhci_pci" "ahci" "nvme" "usbhid" "usb_storage" "sd_mod" ];
   hardware.cpu.intel.updateMicrocode = lib.mkDefault true;
 }
