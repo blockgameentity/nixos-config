@@ -16,6 +16,14 @@
   ];
 
   networking.hostName = "laptop";
+
+  # Single built-in LCD in landscape: RGB subpixel rendering sharpens text in
+  # Firefox, Electron and Qt (GTK 4 renders grayscale regardless). If text
+  # shows coloured edges, the panel is BGR: switch to "bgr".
+  fonts.fontconfig.subpixel = {
+    rgba = "rgb";
+    lcdfilter = "default";
+  };
   # NetworkManager owns DHCP and wifi; its module forces networking.useDHCP off
   # (setting it true here is a conflicting definition, not a preference).
   networking.networkmanager.enable = true;

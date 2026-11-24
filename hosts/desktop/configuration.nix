@@ -18,6 +18,11 @@
   ];
 
   networking.hostName = "desktop";
+
+  # Grayscale antialiasing only. The main display (AW3425DW) is QD-OLED with a
+  # triangular subpixel layout, so RGB subpixel rendering would add colour
+  # fringes there; the right Acer is portrait (vertical subpixels) as well.
+  fonts.fontconfig.subpixel.rgba = "none";
   # NetworkManager owns DHCP on ethernet and wifi. Its module forces
   # networking.useDHCP off, so that option is not set here; nm-applet in the
   # Wayfire [autostart] is the front end.

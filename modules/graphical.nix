@@ -12,15 +12,25 @@
 
   # JetBrains Mono everywhere monospace is requested, in the Nerd Font variant so
   # starship/eza/lazygit glyphs render; Noto Color Emoji for emoji fallback.
+  # Inter for UI text, Noto as the wide-coverage fallback. Without a sansSerif
+  # entry every app fell back to DejaVu Sans, the only sans font installed.
   fonts.packages = [
     pkgs.jetbrains-mono
     pkgs.nerd-fonts.jetbrains-mono
     pkgs.noto-fonts-color-emoji
+    pkgs.inter
+    pkgs.noto-fonts
   ];
   fonts.fontconfig.defaultFonts = {
+    sansSerif = [ "Inter" "Noto Sans" ];
+    serif = [ "Noto Serif" ];
     monospace = [ "JetBrainsMono Nerd Font" "JetBrains Mono" ];
     emoji = [ "Noto Color Emoji" ];
   };
+  # Subpixel order is per host (hosts/*/configuration.nix): grayscale on the
+  # desktop's QD-OLED, RGB on the laptop's LCD. Fontconfig is global under
+  # Wayland, so it cannot differ between outputs on one machine.
+  fonts.fontconfig.hinting.style = "slight";
 
   # Steam and Obsidian are unfree, and hosts that add the NVIDIA driver (the
   # laptop) need its packages too; allow exactly those names instead of flipping
@@ -141,6 +151,10 @@
     # read XCURSOR_* without the Home Manager profile. Adwaita is installed below.
     XCURSOR_THEME = "Adwaita";
     XCURSOR_SIZE = "24";
+    # FreeType stem darkening: slightly heavier glyphs, so thin light-on-dark
+    # text holds up (most visible on the desktop's OLED). Read once per
+    # process, so a re-login is needed before running apps pick it up.
+    FREETYPE_PROPERTIES = "cff:no-stem-darkening=0 autofitter:no-stem-darkening=0";
   };
 
   # Adwaita cursors in the system profile, where any app not started
