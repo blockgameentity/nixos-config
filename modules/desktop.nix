@@ -6,8 +6,9 @@
   lib,
   ...
 }: {
-  # Sound processing for the GigaWorks T20 speakers on the onboard line out.
-  imports = [ ./gigaworks-eq.nix ];
+  # Sound processing: GigaWorks T20 speakers (onboard line out) and the Focal
+  # Bathys headphones (DG60P Bluetooth transmitter).
+  imports = [ ./gigaworks-eq.nix ./bathys-eq.nix ];
 
   # No global `nixpkgs.config.cudaSupport`: neither cache.nixos.org nor
   # Chaotic-Nyx builds packages with it, so it turned firefox, obs-studio,
