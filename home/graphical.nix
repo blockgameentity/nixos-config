@@ -4,7 +4,10 @@
   lib,
   pkgs,
   ...
-}: {
+}: let
+  # Title-bar buttons for client-side decorations; see gtk below.
+  buttonLayout = "appmenu:minimize,maximize,close";
+in {
   # Keep Claude Code out of git history: no "Co-Authored-By: Claude" trailer on
   # commits and no "Generated with Claude Code" footer on PRs. `attribution` is
   # the current key (empty string = omit); `includeCoAuthoredBy` is its
@@ -56,7 +59,15 @@
     # replaces Firefox/Ghostty with its own glyphs. The only icons Adwaita lacks
     # are ironbar's menu categories; modules/wayfire.nix adds just those.
     colorScheme = "dark";
+    # Client-side title bars (GTK 3/4, libadwaita) show only the buttons named
+    # here, and GTK's default outside GNOME is "appmenu:close". Wayfire's own
+    # decorations have minimize/maximize, so match them. GTK 3 and 4 read the
+    # settings.ini key; libadwaita apps get the dconf key below via the
+    # settings portal, which overrides settings.ini when present.
+    gtk3.extraConfig.gtk-decoration-layout = buttonLayout;
+    gtk4.extraConfig.gtk-decoration-layout = buttonLayout;
   };
+  dconf.settings."org/gnome/desktop/wm/preferences".button-layout = buttonLayout;
 
   # One cursor everywhere: writes ~/.icons/default (so anything asking for the
   # "default" theme gets Adwaita), GTK's cursor-theme setting and the XCURSOR_*
