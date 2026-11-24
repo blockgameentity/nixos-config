@@ -119,6 +119,7 @@ in {
     grim
     slurp
     satty
+    libnotify # notify-send: screenshot.sh and the [view-shot] plugin message
     hyprpicker
     brightnessctl
     playerctl

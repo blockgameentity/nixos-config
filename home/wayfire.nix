@@ -24,6 +24,7 @@
     "wayfire-scripts/clipboard.sh".source = ./files/wayfire/scripts/clipboard.sh;
     "wayfire-scripts/wallpaper.sh".source = ./files/wayfire/scripts/wallpaper.sh;
     "wayfire-scripts/slideshow.sh".source = ./files/wayfire/scripts/slideshow.sh;
+    "wayfire-scripts/screenshot.sh".source = ./files/wayfire/scripts/screenshot.sh;
   };
 
   # The polkit authentication agent, as something the [autostart] line in
