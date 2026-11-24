@@ -2,10 +2,9 @@
 # screenshot.sh - ShareX-style capture with grim + slurp (+ satty to annotate),
 # bound in wayfire.ini [command].
 #
-#   screenshot.sh region   PrtSc         The selection overlay covers every
-#                                        monitor, so you select on whichever one
-#                                        the cursor is on: drag a rectangle, or
-#                                        click once to take that whole monitor.
+#   screenshot.sh region   PrtSc         Drag a rectangle, on whichever monitor
+#                                        the cursor is on (the overlay covers
+#                                        all of them, no screen picker).
 #                                        On release it is copied to the clipboard
 #                                        AND saved - no editor, no extra step.
 #                                        The notification has an "Annotate"
@@ -27,9 +26,9 @@ mkdir -p "$dir"
 file="$dir/screenshot-$(date +%Y-%m-%d_%H-%M-%S).png"
 
 select_region() {
-    # -o offers each monitor as a ready-made box (click = whole monitor),
-    # -d shows the selection size. Esc cancels: exit quietly.
-    slurp -o -d || exit 0
+    # Plain rectangle selection: drag to draw it, on any monitor. -d shows the
+    # selection size while dragging. Esc cancels: exit quietly.
+    slurp -d || exit 0
 }
 
 annotate() {
