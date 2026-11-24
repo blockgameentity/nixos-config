@@ -4,7 +4,12 @@
 # Everything referenced here comes from home/files/ verbatim, so the working
 # config from the old install can be diffed instead of retyped. Adaptations made
 # on import are listed in docs/wayfire.md ("What is in this branch").
-{pkgs, ...}: {
+{
+  config,
+  osConfig,
+  pkgs,
+  ...
+}: {
   # wayfire.ini is the source of truth in this repo. It is installed as a
   # read-only symlink into the store, which is deliberate: saving settings from
   # wcm will not persist, and that is the trade for having it version-controlled.
@@ -65,4 +70,29 @@
   # fall back to sitting next to the script. Drop wallpaper.png and a
   # wallpapers/ directory in here after the first boot.
   xdg.dataFile."wayfire/.keep".text = "";
+
+  # Elephant (walker's backend) indexes .desktop files once at startup and
+  # watches the directories it resolved then. A switch swaps the profile
+  # symlinks to new store paths, so freshly installed apps never show up in
+  # walker until elephant restarts. Running it as a user unit lets the switch
+  # restart it: the X-Restart-Triggers change whenever the user or system
+  # package set changes, and home-manager's sd-switch restarts changed units.
+  # Walker reconnects on its own. Elephant needs no display, so the
+  # WAYLAND_DISPLAY caveat above (polkit agent) does not apply.
+  systemd.user.services.elephant = {
+    Unit = {
+      Description = "Elephant launcher backend (for walker)";
+      PartOf = ["graphical-session.target"];
+      After = ["graphical-session.target"];
+      X-Restart-Triggers = ["${config.home.path}" "${osConfig.system.path}"];
+    };
+    Service = {
+      ExecStart = "${pkgs.elephant}/bin/elephant";
+      # The user manager's own PATH lacks the profiles, and elephant launches
+      # apps and helper binaries through PATH; match a login shell's.
+      Environment = "PATH=/run/wrappers/bin:/etc/profiles/per-user/${config.home.username}/bin:/run/current-system/sw/bin";
+      Restart = "on-failure";
+    };
+    Install.WantedBy = ["wayfire-session.target"];
+  };
 }
