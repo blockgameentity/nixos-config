@@ -91,7 +91,7 @@ set application image references, and replace the `PLACEHOLDER` markers. Set tim
 networking to match your actual provider. Stage new files before flake evaluation.
 
 Two things that bite on a workstation install specifically, because the graphical hosts have **no
-autologin**: create `/mnt/var/lib/secrets/desu-password-hash` *before* `nixos-install` (the SDDM
+autologin**: create `/mnt/var/lib/secrets/desu-password-hash` *before* `nixos-install` (the
 greeter rejects every password without it - see "Provision runtime secrets"), and run
 `loadkeys dk` in the live installer first, since the LUKS passphrase and that account password are
 typed there while the installed system boots with a Danish keymap. Then:
@@ -424,11 +424,11 @@ bootloader menu itself uses the firmware's keyboard handling and cannot be chang
 
 The desktop and laptop import `modules/graphical.nix`, which deliberately does **not** set
 `services.getty.autologinUser` or `services.displayManager.autoLogin`. Boot asks for two things: the
-LUKS passphrase, then the `desu` password at the SDDM greeter. The session (Wayfire) comes from
+LUKS passphrase, then the `desu` password at the ReGreet greeter. The session (Wayfire) comes from
 `modules/wayfire.nix`.
 
 Autologin is not just a convenience question here: `pam_gnome_keyring` unlocks the login keyring
-from the password that crosses PAM at login (`security.pam.services.sddm.enableGnomeKeyring`).
+from the password that crosses PAM at login (the gnome-keyring module hooks `login`, which the greetd PAM service includes).
 With autologin there is no such password, so the choice was one unlock prompt per boot or an
 unencrypted keyring. Typing it once purchases an encrypted keyring that unlocks itself, and it
 means a powered-on machine with the disk already unlocked is no longer a logged-in session.
@@ -533,7 +533,7 @@ typed by hand is a random string and lives only in the vault.
 
 `desu-password-hash` is required on **every** host, not just the server: all three set
 `users.users.desu.hashedPasswordFile`, and `sudo` has nothing to check without it (on the
-workstations that means the SDDM greeter rejects every password, not just `sudo`). Generate one
+workstations that means the greeter rejects every password, not just `sudo`). Generate one
 hash and reuse it, or use a different password per machine:
 
 ```console

@@ -14,7 +14,7 @@ Written against the current repository state: three NixOS hosts (server `desu`, 
 - **Memory**: `modules/memory.nix` - zswap (zstd, 25% pool, shrinker), zram banned as a hard
   assignment, swap file per host except the laptop's swap LV. Sizes: desktop 64 GiB, server
   32 GiB, laptop 32 GiB LV.
-- **Session**: SDDM -> Wayfire on both workstations with the account password at the greeter (no
+- **Session**: greetd + ReGreet -> Wayfire on both workstations with the account password at the greeter (no
   autologin: it is what lets `pam_gnome_keyring` unlock the login keyring), Danish
   keyboard everywhere including the initrd LUKS prompt, English language, DKK + `DD-MM-YYYY` +
   24h dates, Wayland-only environment variables, PipeWire/rtkit audio.

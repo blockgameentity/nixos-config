@@ -44,7 +44,7 @@
 
   # One cursor everywhere: writes ~/.icons/default (so anything asking for the
   # "default" theme gets Adwaita), GTK's cursor-theme setting and the XCURSOR_*
-  # variables, matching modules/graphical.nix, SDDM and [input] in wayfire.ini.
+  # variables, matching modules/graphical.nix, the ReGreet greeter and [input] in wayfire.ini.
   home.pointerCursor = {
     enable = true;
     name = "Adwaita";

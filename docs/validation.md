@@ -3,7 +3,7 @@
 - All three hosts (`desu`, `desktop`, `laptop`) evaluate to a derivation with assertions **enabled**
   (`nix eval --raw .#nixosConfigurations.<host>.config.system.build.toplevel.drvPath`). The
   assertion that mattered: `services.displayManager.defaultSession = "wayfire"` needs
-  `services.displayManager.sessionPackages = [ wayfire ];` or SDDM offers no session at all. This is
+  `services.displayManager.sessionPackages = [ wayfire ];` or the display manager offers no session at all. This is
   still not a build/boot test: nothing was compiled or started.
 - `checks.config-eval` evaluates those same configurations, so `nix flake check` fails on an
   assertion too. The previous version wrapped each host in `extendModules { assertions = mkForce [ ]; }`,

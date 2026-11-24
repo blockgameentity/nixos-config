@@ -6,6 +6,7 @@
 # on import are listed in docs/wayfire.md ("What is in this branch").
 {
   config,
+  lib,
   osConfig,
   pkgs,
   ...
@@ -95,4 +96,25 @@
     };
     Install.WantedBy = ["wayfire-session.target"];
   };
+
+  # Dolphin integration, written into files Dolphin and other apps also write
+  # to themselves, hence activation commands instead of read-only store links
+  # (~/.config/mimeapps.list already holds handlers added by Bitwarden, Teams and
+  # claude-code; a Home Manager-managed copy would clobber those and break the
+  # next time an app registers one).
+  #
+  # - Terminal: Shift+F4 / "Open Terminal Here" go through KTerminalLauncherJob,
+  #   which runs kdeglobals' General.TerminalApplication in the current folder.
+  #   Ghostty only opens in that folder as its own process: in single-instance
+  #   mode (auto-enabled when there is no TTY, as from Dolphin) the window opens
+  #   in the running instance with working-directory=home. The embedded F4
+  #   terminal panel is a Konsole KPart and stays unavailable without Konsole.
+  # - inode/directory -> Dolphin: what "Show in folder" from Firefox, the portal
+  #   and xdg-open on a directory use.
+  home.activation.dolphinIntegration = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    run ${pkgs.kdePackages.kconfig}/bin/kwriteconfig6 --file kdeglobals \
+      --group General --key TerminalApplication \
+      "ghostty --gtk-single-instance=false --working-directory=inherit"
+    run ${pkgs.xdg-utils}/bin/xdg-mime default org.kde.dolphin.desktop inode/directory
+  '';
 }

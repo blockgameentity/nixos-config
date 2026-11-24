@@ -125,7 +125,15 @@ in {
     playerctl
     walker # super+x (elephant is its backend)
     elephant
-    nautilus # super+e
+    # super+e. Dolphin, not nautilus: split view, real bulk rename, KIO for
+    # remote/archive/MTP. It brings KDE Frameworks (Qt6, KIO, Solid) but not
+    # Plasma; outside Plasma it needs the plugins below and the menu file at the
+    # bottom of this module. Theme comes from the Qt settings in
+    # home/graphical.nix; the terminal it opens is set in home/wayfire.nix.
+    kdePackages.dolphin
+    kdePackages.kio-extras # thumbnails, sftp://, smb://, mtp:// (phones), recently-used
+    kdePackages.ffmpegthumbs # video thumbnails
+    kdePackages.kdegraphics-thumbnailers # PDF/PostScript/RAW thumbnails
     pkgs.mission-center # super+p (package mission-center, binary missioncenter)
     wlogout # super+esc
   ]);
@@ -137,51 +145,63 @@ in {
   security.pam.services.swaylock = {};
 
   # Sessions: the wayfire.desktop above lands in /run/current-system/sw, so a
-  # display manager can offer it. SDDM is also what asks for the account password
-  # (modules/graphical.nix has no autologin), and that password is what
+  # display manager can offer it. The greeter is also what asks for the account
+  # password (modules/graphical.nix has no autologin), and that password is what
   # pam_gnome_keyring unlocks the login keyring with.
-  services.displayManager.sddm = {
+  #
+  # greetd + ReGreet rather than SDDM. SDDM's Wayland greeter needs a compositor
+  # under it: nixpkgs' default is Weston in kiosk mode, which drew no pointer at
+  # all here whatever XCURSOR_*/Theme.Cursor* said, and the alternative is
+  # kwin_wayland plus its KDE closure just for a login screen. ReGreet is a GTK4
+  # greeter (same Adwaita look as the session) running in cage, a single-window
+  # wlroots kiosk that draws the pointer like Wayfire does.
+  #
+  # PAM: nixpkgs' greetd service is `auth substack login` + `session include
+  # login`, so pam_gnome_keyring (hooked into `login` by the gnome-keyring
+  # module) and the login failDelay from modules/base.nix both apply unchanged.
+  #
+  # The greeter's environment comes from that PAM stack too: pam_env loads
+  # /etc/pam/environment, which carries XDG_DATA_DIRS (ReGreet finds
+  # wayland-sessions/wayfire.desktop through it), XKB_DEFAULT_LAYOUT=dk (cage
+  # reads it, so the password is typed on a Danish layout) and XCURSOR_*.
+  services.displayManager.regreet = {
     enable = true;
-    # Wayland greeter: no X server, matching the Wayland-only session variables
-    # in modules/graphical.nix.
-    wayland.enable = true;
-    # The nixpkgs default greeter compositor is Weston in kiosk mode, which on
-    # these hosts draws no pointer at all regardless of XCURSOR_* / Theme.Cursor*.
-    # kwin_wayland honours them, and the module wires up everything else it needs
-    # (layer-shell-qt and GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell).
-    wayland.compositor = "kwin";
+    # Adwaita + prefer-dark is the GTK4 equivalent of Adwaita-dark; cursor and
+    # icons default to Adwaita, matching home.pointerCursor.
+    theme.name = "Adwaita";
     settings = {
-      # The greeter is kwin_wayland running as the sddm user, so its cursor theme
-      # comes from XCURSOR_THEME (there is no /var/lib/sddm/.config/kcminputrc),
-      # and the module only writes Theme.CursorTheme when
-      # services.displayManager.sddm.theme == "breeze", which it is not here.
-      # Without a theme the pointer is simply not drawn on the login screen.
-      #
-      # Do NOT put the cursor variables into General.GreeterEnvironment: that key
-      # is a QStringList of comma-separated entries holding kwin's own
-      # QT_WAYLAND_SHELL_INTEGRATION=layer-shell, and appending with spaces makes
-      # it one bogus value - kwin then refuses the integration and the greeter
-      # never starts (boot hangs at "Reached target Graphical Interface"). The
-      # service environment below reaches the greeter without touching that key.
-      Theme = {
-        CursorTheme = "Adwaita";
-        CursorSize = 24;
-      };
+      GTK.application_prefer_dark_theme = true;
+      # Day-month date and 24-hour time, as LC_TIME=da_DK gives the session.
+      widget.clock.format = "%a %d-%m %H:%M";
     };
   };
-  # Inherited by sddm and by every process it starts, the greeter included.
-  systemd.services.display-manager.environment = {
-    XCURSOR_THEME = "Adwaita";
-    XCURSOR_SIZE = "24";
-  };
-  # SDDM only offers sessions whose packages are listed here: the list of valid
-  # `defaultSession` names is built from these `providedSessions` attributes, not
-  # from what happens to be in /run/current-system/sw. Without this,
-  # `defaultSession = "wayfire"` fails its assertion and no session is offered at
-  # all. (The wayfire package's passthru.providedSessions comes from nixpkgs and
-  # survives the overrideAttrs in packages/wayfire.nix.)
+  # Only the session packages listed here are offered, and `defaultSession` is
+  # validated against their `providedSessions`, not against whatever is in
+  # /run/current-system/sw. (The wayfire package's passthru.providedSessions
+  # comes from nixpkgs and survives the overrideAttrs in packages/wayfire.nix.)
   services.displayManager.sessionPackages = [wayfire];
   services.displayManager.defaultSession = "wayfire";
+
+  # Dolphin's "Open With" list and its file associations come from KService's
+  # ksycoca cache, which only indexes applications reachable through
+  # $XDG_CONFIG_DIRS/menus/${XDG_MENU_PREFIX}applications.menu. Plasma ships that
+  # file (plasma-applications.menu, in plasma-workspace); nothing here does, so
+  # outside Plasma "Open With" is empty and double-clicking a file asks which
+  # program to use. This is the smallest valid freedesktop menu - every .desktop
+  # entry in XDG_DATA_DIRS, no categories - written here instead of pulling all
+  # of plasma-workspace in for one XML file. The ksycoca cache rebuilds itself
+  # the next time Dolphin starts; `kbuildsycoca6` forces it.
+  environment.etc."xdg/menus/applications.menu".text = ''
+    <!DOCTYPE Menu PUBLIC "-//freedesktop//DTD Menu 1.0//EN"
+      "http://www.freedesktop.org/standards/menu-spec/1.0/menu.dtd">
+    <Menu>
+      <Name>Applications</Name>
+      <DefaultAppDirs/>
+      <DefaultDirectoryDirs/>
+      <DefaultMergeDirs/>
+      <Include><All/></Include>
+    </Menu>
+  '';
 
   # Screensharing. The failure mode worth avoiding is the one that made this look
   # broken on CachyOS: a second portal frontend started from [autostart] racing

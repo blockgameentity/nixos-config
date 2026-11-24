@@ -45,7 +45,7 @@ install -m 0600 /dev/stdin /mnt/var/lib/secrets/desu-password-hash   # paste has
 ```
 
 `desu-password-hash` is needed on **all three hosts**, not just the server: without it the account
-is locked, and on the workstations the SDDM greeter rejects every password while `sudo` does the
+is locked, and on the workstations the greeter rejects every password while `sudo` does the
 same once you are in.
 
 ### Tier 3 - offline, non-digital

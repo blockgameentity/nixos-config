@@ -42,7 +42,7 @@
 
   # No autologin, by decision. `services.getty.autologinUser` and
   # `services.displayManager.autoLogin` are deliberately absent: the account
-  # password is typed once at the SDDM greeter, after the LUKS passphrase.
+  # password is typed once at the greeter (ReGreet), after the LUKS passphrase.
   #
   # This is not just a preference about typing. pam_gnome_keyring unlocks the
   # login keyring from the password that crosses PAM at login; autologin never
@@ -94,9 +94,9 @@
   # unlocks the `login` keyring with it, and creates that keyring with the same
   # password the first time. So the keyring is encrypted at rest and never
   # prompts. The module hooks the console `login` PAM service only, and that is
-  # already enough for the graphical session: nixpkgs' sddm stack is
+  # already enough for the graphical session: nixpkgs' greetd stack is
   # `auth substack login` plus `session include login`. Setting the
-  # `enableGnomeKeyring` option on the sddm service would be a no-op, because sddm
+  # `enableGnomeKeyring` option on the greetd service would be a no-op, because greetd
   # sets useDefaultRules = false and ships its own rule list.
   services.gnome.gnome-keyring.enable = true;
 
@@ -138,16 +138,15 @@
     # bitwarden, zed, firefox all ship Electron/GTK frontends here).
     NIXOS_OZONE_WL = "1";
     MOZ_ENABLE_WAYLAND = "1";
-    # Same cursor theme the SDDM greeter is told to use (modules/wayfire.nix), so
+    # Same cursor theme the ReGreet greeter uses (modules/wayfire.nix), so
     # the pointer does not change shape at login. Adwaita is installed below.
     XCURSOR_THEME = "Adwaita";
     XCURSOR_SIZE = "24";
   };
 
-  # Adwaita cursors in the system profile. kwin_wayland, which draws the SDDM
-  # login screen, resolves cursor themes through XDG_DATA_DIRS/icons; with no
-  # theme installed there it draws no pointer at all - the "no mouse cursor in
-  # SDDM" bug.
+  # Adwaita cursors in the system profile, where the greeter (cage + ReGreet,
+  # running as the `greeter` user with no home profile) and any app not started
+  # from the Home Manager profile resolve XCURSOR_THEME through XCURSOR_PATH.
   environment.systemPackages = [ pkgs.adwaita-icon-theme ];
 
   # sched_ext scheduler: bpfland as the default, managed by scx_loader (which
