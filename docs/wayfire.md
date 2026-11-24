@@ -255,6 +255,14 @@ Only what could not survive the move:
   was `-c 000000c` — seven hex digits, which swaylock rejects (`parse_color` accepts only 6 or 8)
   and replaces with opaque white `0xFFFFFFFF`. That is why the lockscreen came up white instead of
   black. Five-sixths of the value was right; the trailing `c` was the whole bug.
+- `[autostart] session = systemctl --user start graphical-session.target`. Not in the CachyOS config
+  because CachyOS started the portal from a plasma session that had already started that target.
+  Upstream's `xdg-desktop-portal.service` has `Requisite=graphical-session.target`, so on Wayfire
+  every portal activation failed with `start failed with result 'dependency'`: no Settings portal,
+  no screencast, and GTK logging "Gdk cannot get portal org.freedesktop.portal.settings".
+- `ironbar`'s `[launcher]` block sets `type = "gtk"`. The launcher widget is a front-end with no
+  default backend, so the button rendered and clicked into nothing. `walker` is the alternative if
+  reusing the Super+X launcher is preferred; ironbar would then talk to the already-running daemon.
 - Nothing else. Output sections, keybinds, blur, workspace layout and the ironbar config are as
   they were.
 

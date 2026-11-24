@@ -5,6 +5,12 @@
 position = "top"
 icon_theme = "Paper"
 
+# ironbar's launcher is a front-end only: with no backend configured the button
+# renders and clicks do nothing. "gtk" is the built-in one and needs no extra
+# binary; switch to "walker" to reuse the Super+X launcher already running.
+[launcher]
+type = "gtk"
+
 [[start]]
 type = "menu"
 label = "󱓞"
