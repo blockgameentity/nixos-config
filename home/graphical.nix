@@ -73,6 +73,13 @@
     seahorse # keyring frontend: create, unlock and inspect keyrings
     firefox
     libreoffice # school
+    # LibreOffice's wrapper adds share/hyphen and share/hunspell from every
+    # profile in NIX_PROFILES to DICPATH, so dictionaries in the user profile
+    # give Writer hyphenation and spellchecking for these locales.
+    hyphenDicts.en_US
+    hyphenDicts.da_DK
+    hunspellDicts.en_US
+    hunspellDicts.da_DK
     filezilla
     obsidian
     bitwarden-desktop
