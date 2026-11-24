@@ -1,9 +1,25 @@
 # Home profile for machines with a graphical session (laptop, desktop).
 # Imported by modules/graphical.nix; the server deliberately does not use it.
 {
+  lib,
   pkgs,
   ...
 }: {
+  # Keep Claude Code out of git history: no "Co-Authored-By: Claude" trailer on
+  # commits and no "Generated with Claude Code" footer on PRs. `attribution` is
+  # the current key (empty string = omit); `includeCoAuthoredBy` is its
+  # deprecated predecessor, set too for older builds. Merged into the existing
+  # file rather than linked from the store, because Claude Code writes its own
+  # state there (theme, /config) and a read-only symlink would break that.
+  home.activation.claudeCodeSettings = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    f="$HOME/.claude/settings.json"
+    run mkdir -p "$HOME/.claude"
+    [ -s "$f" ] || echo '{}' > "$f"
+    tmp=$(mktemp)
+    ${pkgs.jq}/bin/jq '. + {attribution: {commit: "", pr: ""}, includeCoAuthoredBy: false}' "$f" > "$tmp" \
+      && run mv "$tmp" "$f" || rm -f "$tmp"
+  '';
+
   # Copied from ~/.config/ghostty/config.ghostty: theme, bar cursor, and the
   # cursor_warp shader. Background, font size and keybinds stay on defaults.
   programs.ghostty = {
