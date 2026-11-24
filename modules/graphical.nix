@@ -57,9 +57,8 @@
   # Firmware blobs with a redistribution licence (linux-firmware). It is off by
   # default in nixpkgs, and without it the laptop has no wifi and no working
   # GPU: the MT7921 wifi/Bluetooth need mt7921/*, and amdgpu (the Radeon iGPU
-  # driving the panel) needs amdgpu/renoir_*. The desktop needs none of these
-  # today, but the flag costs one store path and prevents the same class of
-  # failure there (its iGPU is unused, and nvidia-x11 ships its own firmware).
+  # driving the panel) needs amdgpu/renoir_*. The desktop needs it just as much:
+  # its Intel wifi and Bluetooth load their firmware from here (nvidia-x11 ships its own GPU firmware).
   # Server NICs are not covered by this file - add the same line to
   # hosts/desu/configuration.nix if that machine's driver ever needs blobs.
   hardware.enableRedistributableFirmware = true;

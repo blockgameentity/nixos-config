@@ -52,7 +52,7 @@ reviewed config, not as raw generator output.
 5. Evaluate before deploying:
    ```sh
    nix eval .#nixosConfigurations.<name>.config.system.build.toplevel.drvPath
-   sudo nh os switch   # NH_FLAKE=/etc/nixos, provided by modules/base.nix
+   nh os switch        # runs as your user, calls sudo itself; NH_FLAKE=/etc/nixos, provided by modules/base.nix
    ```
 
 Hosts that need extra modules (for example the server's disposable CI runners)

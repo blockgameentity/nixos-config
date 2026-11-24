@@ -18,14 +18,26 @@
   ];
 
   networking.hostName = "desktop";
-  networking.useDHCP = true;
+  # NetworkManager owns DHCP on ethernet and wifi. Its module forces
+  # networking.useDHCP off, so that option is not set here; nm-applet in the
+  # Wayfire [autostart] is the front end.
+  networking.networkmanager.enable = true;
+
+  # Intel Bluetooth (firmware from hardware.enableRedistributableFirmware).
+  # blueman-applet in the Wayfire [autostart] is the front end; services.blueman
+  # is enabled in modules/wayfire.nix.
+  hardware.bluetooth = {
+    enable = true;
+    powerOnBoot = true;
+  };
+
   time.timeZone = "Europe/Copenhagen";
   # Dual boot with Windows on this machine: Windows keeps the RTC in local time,
   # so writing UTC there would shift its clock by two hours every boot.
   time.hardwareClockInLocalTime = true;
   users.users.desu = {
     isNormalUser = true;
-    extraGroups = [ "wheel" ];
+    extraGroups = [ "wheel" "networkmanager" ];
     # Password for sudo and for the tailnet SSH login below. Root-only file,
     # provisioned before the first boot; without it the account is locked and
     # sudo rejects every password. Generate it with `mkpasswd -m yescrypt`.
@@ -59,6 +71,13 @@
   boot.loader.limine = {
     enable = true;
     maxGenerations = 10;
+    # Windows in the Limine menu. The ESP is shared, so boot() (the partition
+    # Limine itself was loaded from) is where Windows Boot Manager lives too.
+    extraEntries = ''
+      /Windows
+        protocol: efi_chainload
+        path: boot():/EFI/Microsoft/Boot/bootmgfw.efi
+    '';
   };
   boot.loader.efi.canTouchEfiVariables = true;
   # btrfs housekeeping for the subvolume layout in hardware-configuration.nix.

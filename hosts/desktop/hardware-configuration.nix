@@ -80,7 +80,7 @@
   # Windows itself lives on the other NVMe; leave it alone unless you want it
   # browsable from NixOS:
   # fileSystems."/mnt/windows" = {
-  #   device = "/dev/disk/by-uuid/1E0E1C370E1C0A83";
+  #   device = "/dev/disk/by-label/Windows";
   #   fsType = "ntfs3";
   #   options = [ "rw" "uid=1000" "gid=100" ];
   # };

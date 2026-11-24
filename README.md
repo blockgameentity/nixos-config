@@ -14,7 +14,8 @@ No server data or secret values belong in this repository.
   live in `flake.nix`; a host still needs its own partitioning run before the first install.
 - `modules/base.nix`: host-independent baseline every NixOS host imports through `mkHost`:
   flakes, `nh` with `NH_FLAKE=/etc/nixos`, fish as the login shell, and Home Manager
-  wired to the universal home profile. So `sudo nh os switch` works from any directory.
+  wired to the universal home profile. So `nh os switch` works from any directory; run it as
+  your user, not with `sudo` - nh calls sudo itself and refuses to run as root.
 - Nixpkgs channels: `desu` runs `nixos-26.05` (stable, `channel = "stable"`), while the
   laptop, desktop and disposable CI runners use `nixos-unstable` (the `mkHost` default).
   Home Manager is pinned per channel too (`master` vs `release-26.05`), because an HM
@@ -90,17 +91,56 @@ Edit `local.nix`: provision the password-hash file for local console/sudo authen
 set application image references, and replace the `PLACEHOLDER` markers. Set timezone and
 networking to match your actual provider. Stage new files before flake evaluation.
 
-Two things that bite on a workstation install specifically, because the graphical hosts have **no
-autologin**: create `/mnt/var/lib/secrets/desu-password-hash` *before* `nixos-install` (the
-greeter rejects every password without it - see "Provision runtime secrets"), and run
-`loadkeys dk` in the live installer first, since the LUKS passphrase and that account password are
-typed there while the installed system boots with a Danish keymap. Then:
+### Workstation install, step by step (desktop / laptop)
 
-```console
-sudo nixos-install --flake .#laptop --no-root-passwd    # or .#desktop
-```
+The server follows the same shape with its own partitioning block and `.#desu`.
 
-`--no-root-passwd` leaves root locked on purpose; `sudo` uses the `desu` password.
+0. **Before booting the installer** (desktop): everything on `nvme0n1p2` is destroyed, and that is
+   the old CachyOS `/` *and* `/home`. Copy `~` (SSH/GPG keys, browser profiles, `~/.local/share`,
+   game saves, anything not in git) to one of the data disks or off-machine, and `git push` this
+   repository - the working copy under `~` goes with the partition.
+1. Boot the NixOS ISO (graphical or minimal, unstable or 26.05 - the installer's own channel does
+   not matter, the flake pins everything). Get online: ethernet is plug-and-play; for wifi use the
+   graphical ISO's network menu or `nmtui` on the minimal one.
+2. `sudo -i`, then `loadkeys dk`: the LUKS passphrase and the account password are typed in the
+   installer, while the installed system boots with a Danish keymap.
+3. Partition and mount: the per-host block under "Partitioning with btrfs subvolumes" below.
+4. Clone the repo **into the target**, where `NH_FLAKE` will point after boot:
+   ```console
+   nix-shell -p git --run 'git clone https://github.com/blockgameentity/nixos-config.git /mnt/etc/nixos'
+   ```
+   Optionally diff the hardware description (`nixos-generate-config --root /mnt --dir /tmp/hw`, see
+   `hosts/README.md`); never let it overwrite the committed file.
+5. Provision the password hash. Without it the Ly greeter, `sudo` and sshd reject every password -
+   the graphical hosts have **no autologin**:
+   ```console
+   install -d -m 0700 /mnt/var/lib/secrets
+   nix-shell -p mkpasswd --run 'mkpasswd -m yescrypt' > /mnt/var/lib/secrets/desu-password-hash
+   chmod 600 /mnt/var/lib/secrets/desu-password-hash
+   ```
+6. Install. The CachyOS kernel (and the NVIDIA module built against it) comes from the Chaotic-Nyx
+   cache, but the *installer's* nix only knows cache.nixos.org - without the two `--option` flags it
+   compiles that kernel with LTO from source, which takes hours:
+   ```console
+   cd /mnt/etc/nixos
+   nixos-install --flake .#desktop --no-root-passwd \
+     --option extra-substituters https://nyx-cache.chaotic.cx/ \
+     --option extra-trusted-public-keys nyx-cache.chaotic.cx:dJxTrgMC3V3cFfyIiBQDQorG6k1LsqurH/srpMSq7qk=
+   ```
+   (`.#laptop` for the laptop.) The desktop also downloads several GB of CUDA toolkit here.
+   `--no-root-passwd` leaves root locked on purpose; `sudo` uses the `desu` password.
+7. Hand the checkout to the user, so `nh` (which builds as the user) and git can work on it:
+   ```console
+   nixos-enter --root /mnt -c 'chown -R desu:users /etc/nixos'
+   reboot
+   ```
+8. First boot: LUKS passphrase, then `desu` + password at Ly, which starts Wayfire. Then:
+   - wifi: `nm-applet` in the bar, or `nmcli device wifi connect <SSID> --ask`;
+   - Bluetooth: `blueman-applet` in the bar, or `bluetoothctl` (`scan on`, `pair`, `trust`, `connect`);
+   - Tailscale: `sudo tailscale up` (no `--ssh` on the workstations, see "Remote access");
+   - Windows: the `Windows` entry in the Limine menu (chainloads `EFI/Microsoft/Boot/bootmgfw.efi`
+     from the shared ESP) - see "Bootloader (Limine)";
+   - later rebuilds: `nh os switch` as `desu`.
 
 ### Partitioning with btrfs subvolumes
 
@@ -167,7 +207,7 @@ itself lives on the other NVMe and is untouched by any of this.
 
 ```console
 # Do NOT touch nvme0n1p1 - Windows Boot Manager and Limine both live on it.
-cryptsetup luksFormat --label cryptroot /dev/nvme0n1p2   # destroys the old CachyOS root only
+cryptsetup luksFormat --label cryptroot /dev/nvme0n1p2   # destroys ALL of CachyOS: / and /home
 cryptsetup open /dev/nvme0n1p2 cryptroot
 mkfs.btrfs -L nixos /dev/mapper/cryptroot
 
@@ -193,6 +233,13 @@ mount -o fmask=0077,dmask=0077 /dev/disk/by-uuid/226E-1C60 /mnt/boot
 The installer adds a `Limine` firmware entry next to `Windows Boot Manager`; it does not
 remove it. `time.hardwareClockInLocalTime = true` is set for this host so Windows' clock does
 not jump two hours every time you boot it.
+
+`hosts/desktop/configuration.nix` enables NetworkManager (ethernet + Intel wifi, replacing the plain
+`networking.useDHCP`) and Bluetooth; their firmware comes from `hardware.enableRedistributableFirmware`
+in `modules/graphical.nix`.
+
+Any other drives in the machine are not touched by the install and are not in `fileSystems`;
+udisks2 mounts them under `/run/media/desu/<label>` on demand.
 
 #### Laptop (`hosts/laptop/hardware-configuration.nix`)
 
@@ -321,21 +368,24 @@ either - they share the disk - so restic stays the off-site copy. Enabling snapp
 one more subvolume (`@snapshots`, mounted at `/.snapshots`) and its own rollback runbook;
 do not mount it on top of an existing layout without redoing this partitioning.
 
+Server install, after its partitioning block (same pattern as the workstation steps above):
+
 ```console
-# Keep the checkout where NH_FLAKE points (modules/base.nix): /etc/nixos.
-git clone https://github.com/blockgameentity/nixos-config.git /etc/nixos
-cd /etc/nixos
+# Clone into the target: NH_FLAKE (modules/base.nix) is /etc/nixos on the INSTALLED system.
+nix-shell -p git --run 'git clone https://github.com/blockgameentity/nixos-config.git /mnt/etc/nixos'
+cd /mnt/etc/nixos
 git add hosts/desu
 nix flake check
 nix build .#nixosConfigurations.desu.config.system.build.toplevel
-sudo nixos-install --flake .#desu
+nixos-install --flake .#desu --no-root-passwd
+nixos-enter --root /mnt -c 'chown -R desu:users /etc/nixos'
 ```
 
 After first boot, rebuilds use `nh` (installed by `modules/base.nix`):
 
 ```console
-sudo nh os switch           # build and activate /etc/nixos for this host
-sudo nh os boot             # same, but only for the next boot
+nh os switch           # build and activate /etc/nixos for this host
+nh os boot             # same, but only for the next boot
 nh search <query>           # package search; queries search.nixos.org, not nix-index
 ```
 
@@ -376,13 +426,13 @@ entry itself. The boot entry editor is left off: an editable command line allows
 Switching a machine that currently boots systemd-boot:
 
 ```console
-sudo nh os boot          # install Limine as the active loader for the next boot
+nh os boot          # install Limine as the active loader for the next boot
 sudo reboot              # boot it before touching anything else; keep rescue media ready
 # after confirming the menu and a successful boot:
 sudo rm -rf /boot/EFI/systemd /boot/loader   # stale systemd-boot instance and entries
 sudo efibootmgr -v                           # find the leftover "Linux Boot Manager" entry
 sudo efibootmgr -b <NNNN> -B                 # delete it, or keep it as a fallback
-sudo nh os switch        # make this generation the running one
+nh os switch        # make this generation the running one
 ```
 
 `nixos-install --flake .#desu` on a fresh disk does this in one step and needs no cleanup.
@@ -655,7 +705,7 @@ before disconnecting rescue access. CI already blocks 100.64.0.0/10.
 
 ## Acceptance tests / backups
 
-- `nixos-rebuild build --flake .#desu` (or `sudo nh os test`, then `sudo nh os switch`), then
+- `nixos-rebuild build --flake .#desu` (or `nh os test`, then `nh os switch`), then
   test in a restore VM before switching production.
 - `systemctl --failed`, `journalctl -u fluxer -u caddy`, container health and Mongo primary.
 - Off-network direct origin HTTP/HTTPS (IPv4 AND IPv6) denied; Cloudflare URLs work.

@@ -81,7 +81,7 @@ in {
     swaylock
     swaynotificationcenter # swaync / swaync-client
     swayosd # swayosd-server / swayosd-client
-    blueman # blueman-applet
+    blueman # blueman-applet (its system half: services.blueman below)
     networkmanagerapplet # nm-applet
     # The polkit agent. polkit_gnome, not hyprpolkitagent: the latter is
     # Hyprland's agent (hyprtoolkit), and under Wayfire its dialog can come up
@@ -143,6 +143,12 @@ in {
   # PAM falls back to `other`, which denies everything: every password, the
   # right one included, is reported wrong and the screen stays locked.
   security.pam.services.swaylock = {};
+
+  # blueman-applet (in [autostart]) needs its system half: the blueman-mechanism
+  # D-Bus service and polkit rules. Installing the package alone gives an applet
+  # that cannot change adapter settings. It only does anything on a host that
+  # also sets hardware.bluetooth.enable (both workstations do).
+  services.blueman.enable = true;
 
   # Sessions: the wayfire.desktop above lands in /run/current-system/sw, so a
   # display manager can offer it. The greeter is also what asks for the account
