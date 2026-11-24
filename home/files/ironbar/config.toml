@@ -64,7 +64,7 @@ memory = 5
 type = "volume"
 format = "{icon} {percentage}%"
 mute_format = "{icon} {percentage}%"
-show_sources = false
+show_sources = true
 
 [end.icons]
 mic_volume = "󰍬"
@@ -197,7 +197,7 @@ memory = 5
 type = "volume"
 format = "{icon} {percentage}%"
 mute_format = "{icon} {percentage}%"
-show_sources = false
+show_sources = true
 
 [monitors.DP-2.end.icons]
 mic_volume = "󰍬"
