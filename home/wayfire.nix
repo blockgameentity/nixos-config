@@ -66,6 +66,16 @@
     };
   };
 
+  # The display manager (Ly) starts the session through NixOS's session wrapper,
+  # which sources /etc/profile and ~/.profile, not through a login shell. Without
+  # this file Wayfire, and every app it launches, misses home.sessionVariables:
+  # QT_QPA_PLATFORMTHEME/QT_STYLE_OVERRIDE (Dolphin came up light), the profile
+  # QT_PLUGIN_PATH holding the adwaita style, EDITOR. Fish sources the same
+  # script on its own, so terminals already had them.
+  home.file.".profile".text = ''
+    . "${config.home.profileDirectory}/etc/profile.d/hm-session-vars.sh"
+  '';
+
   # Wallpapers are user state, not config, so they are not in the repo (the PNG
   # alone is 8 MiB). wallpaper.sh and slideshow.sh look for them here first, and
   # fall back to sitting next to the script. Drop wallpaper.png and a

@@ -149,31 +149,25 @@ in {
   # password (modules/graphical.nix has no autologin), and that password is what
   # pam_gnome_keyring unlocks the login keyring with.
   #
-  # greetd + ReGreet rather than SDDM. SDDM's Wayland greeter needs a compositor
-  # under it: nixpkgs' default is Weston in kiosk mode, which drew no pointer at
-  # all here whatever XCURSOR_*/Theme.Cursor* said, and the alternative is
-  # kwin_wayland plus its KDE closure just for a login screen. ReGreet is a GTK4
-  # greeter (same Adwaita look as the session) running in cage, a single-window
-  # wlroots kiosk that draws the pointer like Wayfire does.
+  # Ly: a TUI greeter on tty1, with no compositor or toolkit under it. The
+  # screen is locked with swaylock, so the greeter shows once per boot. (SDDM
+  # needed Weston, which drew no pointer, or kwin_wayland; greetd + ReGreet
+  # needed cage and GTK4 - all for one password prompt.)
   #
-  # PAM: nixpkgs' greetd service is `auth substack login` + `session include
+  # PAM: nixpkgs' ly service is `auth substack login` + `session include
   # login`, so pam_gnome_keyring (hooked into `login` by the gnome-keyring
   # module) and the login failDelay from modules/base.nix both apply unchanged.
+  # It runs on the console, so the password is typed on console.keyMap (dk).
   #
-  # The greeter's environment comes from that PAM stack too: pam_env loads
-  # /etc/pam/environment, which carries XDG_DATA_DIRS (ReGreet finds
-  # wayland-sessions/wayfire.desktop through it), XKB_DEFAULT_LAYOUT=dk (cage
-  # reads it, so the password is typed on a Danish layout) and XCURSOR_*.
-  services.displayManager.regreet = {
+  # Sessions start through NixOS's session wrapper, which sources /etc/profile
+  # and ~/.profile; Home Manager's session variables arrive through the latter
+  # (home/wayfire.nix).
+  services.displayManager.ly = {
     enable = true;
-    # Adwaita + prefer-dark is the GTK4 equivalent of Adwaita-dark; cursor and
-    # icons default to Adwaita, matching home.pointerCursor.
-    theme.name = "Adwaita";
-    settings = {
-      GTK.application_prefer_dark_theme = true;
-      # Day-month date and 24-hour time, as LC_TIME=da_DK gives the session.
-      widget.clock.format = "%a %d-%m %H:%M";
-    };
+    # Wayland-only machine: no Xorg server or xauth for the greeter.
+    x11Support = false;
+    # Day-month date and 24-hour time, as LC_TIME=da_DK gives the session.
+    settings.clock = "%a %d-%m %H:%M";
   };
   # Only the session packages listed here are offered, and `defaultSession` is
   # validated against their `providedSessions`, not against whatever is in

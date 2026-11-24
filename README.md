@@ -424,11 +424,11 @@ bootloader menu itself uses the firmware's keyboard handling and cannot be chang
 
 The desktop and laptop import `modules/graphical.nix`, which deliberately does **not** set
 `services.getty.autologinUser` or `services.displayManager.autoLogin`. Boot asks for two things: the
-LUKS passphrase, then the `desu` password at the ReGreet greeter. The session (Wayfire) comes from
+LUKS passphrase, then the `desu` password at the Ly greeter. The session (Wayfire) comes from
 `modules/wayfire.nix`.
 
 Autologin is not just a convenience question here: `pam_gnome_keyring` unlocks the login keyring
-from the password that crosses PAM at login (the gnome-keyring module hooks `login`, which the greetd PAM service includes).
+from the password that crosses PAM at login (the gnome-keyring module hooks `login`, which the ly PAM service includes).
 With autologin there is no such password, so the choice was one unlock prompt per boot or an
 unencrypted keyring. Typing it once purchases an encrypted keyring that unlocks itself, and it
 means a powered-on machine with the disk already unlocked is no longer a logged-in session.
