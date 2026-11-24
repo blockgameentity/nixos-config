@@ -143,15 +143,16 @@ on_click = "!systemctl poweroff"
 
 # ============================================================
 # Dell AW3425DW OLED ultrawide (DP-2): same bar, but it auto-hides after 2 s
-# without the pointer, for burn-in protection. Move the pointer to the top edge
-# to reveal it. (0.19 has no scroll-only reveal; the old autohide_listener key
-# does not exist and was ignored.)
+# without the pointer, for burn-in protection. Scroll on the top edge to reveal
+# it; just passing the pointer over the edge does not. `autohide_listener` comes
+# from patches/ironbar-autohide-reveal-on-scroll.patch (upstream PR #1537).
 # ============================================================
 [monitors.DP-2]
 position = "top"
 height = 34
 popup_gap = 6
 autohide = 2000
+autohide_listener = "scroll"
 
 [[monitors.DP-2.start]]
 type = "menu"

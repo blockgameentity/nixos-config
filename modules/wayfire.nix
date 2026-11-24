@@ -29,8 +29,17 @@
   # keeps the closed window's entry, so Firefox still "has" a window after it is
   # quit. Drop the patch once nixpkgs ships a release whose
   # src/modules/launcher/mod.rs handles RemoveItem in the popup.
+  #
+  # The second patch is upstream PR #1537 (merged 2026-09-20, 14 minutes after
+  # v0.19.1 was tagged, so in no release yet): a per-bar
+  # `autohide_listener = "hover" | "scroll" | "click"`, used on the OLED so the
+  # bar only comes back on a scroll at the top edge, not on every pointer pass.
+  # Drop it once nixpkgs ships an ironbar newer than 0.19.1.
   ironbar = pkgs.ironbar.overrideAttrs (old: {
-    patches = (old.patches or []) ++ [../patches/ironbar-launcher-stale-windows.patch];
+    patches = (old.patches or []) ++ [
+      ../patches/ironbar-launcher-stale-windows.patch
+      ../patches/ironbar-autohide-reveal-on-scroll.patch
+    ];
   });
 
   # Category icon names hard-coded in ironbar 0.19's menu widget, mapped to the
