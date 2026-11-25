@@ -64,6 +64,16 @@
   # Mesa/Vulkan stack used by steam, obs-studio and the compositor.
   hardware.graphics.enable = true;
 
+  # `hardware.graphics.enable` installs the ICDs (Mesa's 13 drivers, plus
+  # NVIDIA's via `hardware.nvidia`) but *not* the loader that reads them, so
+  # nothing on this machine could `dlopen("libvulkan.so.1")` and every Vulkan
+  # app silently fell back to nothing. The loader belongs beside the ICDs:
+  # `extraPackages` lands in `/run/opengl-driver/lib`, which is already on the
+  # default library path.
+  hardware.graphics.extraPackages = with pkgs; [
+    vulkan-loader
+  ];
+
   # Firmware blobs with a redistribution licence (linux-firmware). It is off by
   # default in nixpkgs, and without it the laptop has no wifi and no working
   # GPU: the MT7921 wifi/Bluetooth need mt7921/*, and amdgpu (the Radeon iGPU
