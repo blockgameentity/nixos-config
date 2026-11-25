@@ -42,7 +42,7 @@
   time.hardwareClockInLocalTime = true;
   users.users.desu = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" ];
+    extraGroups = [ "wheel" "networkmanager" "video" "render" ];
     # Password for sudo and for the tailnet SSH login below. Root-only file,
     # provisioned before the first boot; without it the account is locked and
     # sudo rejects every password. Generate it with `mkpasswd -m yescrypt`.
