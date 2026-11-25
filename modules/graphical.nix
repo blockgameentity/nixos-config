@@ -145,10 +145,21 @@
   # (numpy, matplotlib) that expect that path plus libstdc++/libgcc_s/zlib;
   # without it `uv run` fails with "Could not start dynamically linked
   # executable" or "libstdc++.so.6: cannot open shared object file". The
-  # module's default library set (stdenv.cc.cc, zlib, ...) already covers
-  # them, and uv's Python bundles Tcl/Tk with X11 linked in, so matplotlib's
-  # TkAgg window works through Xwayland without extra libraries.
-  programs.nix-ld.enable = true;
+  # module's default library set (stdenv.cc.cc, zlib, ...) covers those.
+  #
+  # libx11 and wayland are added for matplotlib: before picking a GUI backend
+  # it dlopens libX11.so.6 / libwayland-client.so.0 to check that a display
+  # exists. Without them it decides the session is "headless", silently uses
+  # the Agg backend and `plt.show()` opens no window ("FigureCanvasAgg is
+  # non-interactive"). uv's Python bundles Tcl/Tk itself, so with these two
+  # the TkAgg window opens through Xwayland.
+  programs.nix-ld = {
+    enable = true;
+    libraries = [
+      pkgs.libx11
+      pkgs.wayland
+    ];
+  };
 
   # Danish keyboard for X11 and for Wayland compositors. `console.keyMap` in
   # modules/base.nix covers the TTYs and the initrd; this covers everything that
