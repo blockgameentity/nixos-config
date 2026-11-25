@@ -140,6 +140,16 @@
   # database to write to and logs a dbus/systemd error on every switch.
   programs.dconf.enable = true;
 
+  # nix-ld: a loader at /lib64/ld-linux-x86-64.so.2 for generic Linux binaries.
+  # uv downloads python-build-standalone interpreters and manylinux wheels
+  # (numpy, matplotlib) that expect that path plus libstdc++/libgcc_s/zlib;
+  # without it `uv run` fails with "Could not start dynamically linked
+  # executable" or "libstdc++.so.6: cannot open shared object file". The
+  # module's default library set (stdenv.cc.cc, zlib, ...) already covers
+  # them, and uv's Python bundles Tcl/Tk with X11 linked in, so matplotlib's
+  # TkAgg window works through Xwayland without extra libraries.
+  programs.nix-ld.enable = true;
+
   # Danish keyboard for X11 and for Wayland compositors. `console.keyMap` in
   # modules/base.nix covers the TTYs and the initrd; this covers everything that
   # reads xkb (GTK/Qt apps included). `console.useXkbConfig` is deliberately NOT
