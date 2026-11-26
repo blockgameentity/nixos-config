@@ -31,6 +31,8 @@
     "wayfire-scripts/wallpaper.sh".source = ./files/wayfire/scripts/wallpaper.sh;
     "wayfire-scripts/slideshow.sh".source = ./files/wayfire/scripts/slideshow.sh;
     "wayfire-scripts/screenshot.sh".source = ./files/wayfire/scripts/screenshot.sh;
+    # Per-machine swayidle policy (laptop vs desktop), see the script header.
+    "wayfire-scripts/idle.sh".source = ./files/wayfire/scripts/idle.sh;
   };
 
   # The polkit authentication agent, as something the [autostart] line in

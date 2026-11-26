@@ -36,6 +36,11 @@
       url = "github:O-Blocken/tilbuds-bot";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Yapfast: native Discord client (Rust), for the workstations. No `follows`:
+    # its flake pins its own nixpkgs and Rust toolchain (rust-toolchain.toml via
+    # rust-overlay), and building it against unstable is untested upstream.
+    # Compiled from source; there is no binary cache for it.
+    yapfast.url = "github:yapfast/yapfast";
   };
   outputs = {
     self,
@@ -47,6 +52,7 @@
     chaotic,
     ttml,
     spar,
+    yapfast,
     ...
   }: let
     # A channel pairs a nixpkgs with the Home Manager that supports it.
@@ -73,7 +79,7 @@
     in
       ch.pkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit ttml spar chaotic; };
+        specialArgs = { inherit ttml spar chaotic yapfast; };
         modules = [
           ./modules/base.nix
           ch.hm.nixosModules.home-manager

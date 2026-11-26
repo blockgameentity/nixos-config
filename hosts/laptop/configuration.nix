@@ -1,7 +1,7 @@
 # Laptop host. Imported by mkHost in flake.nix (nixosConfigurations.laptop).
 # Keep machine-specific policy here; shared defaults
 # come from ../../modules/base.nix.
-{ ... }: {
+{ pkgs, ... }: {
   # hardware-configuration.nix and modules/base.nix are added by mkHost, not here.
 
   # Display, terminal emulator and font baseline shared with the desktop, plus
@@ -36,6 +36,57 @@
   services.libinput.enable = true;
   services.upower.enable = true;
   services.power-profiles-daemon.enable = true;
+
+  # Battery policy, applied whenever the charger is plugged in or pulled, and once
+  # at boot:
+  #   battery  power-profiles-daemon "power-saver" + scx_bpfland PowerSave
+  #   charger  "balanced" + bpfland Auto (no power saving while on mains)
+  # Nothing else switches the profile under Wayfire (no desktop power manager).
+  # A profile picked by hand still sticks until the next plug/unplug.
+  #
+  # bpfland stays the scheduler (lavd was worse on the desktop); only its mode
+  # changes. Modes are passed to scx_loader over D-Bus by number:
+  # 0 = Auto, 2 = PowerSave (`busctl call org.scx.Loader /org/scx/Loader
+  # org.scx.Loader SchedulerModeArgs s scx_bpfland` lists them).
+  services.scx-loader.config.default_mode = "PowerSave";
+  systemd.services.power-source-sync = {
+    description = "Match power profile and scheduler mode to charger/battery";
+    after = [ "power-profiles-daemon.service" "scx_loader.service" ];
+    wants = [ "power-profiles-daemon.service" ];
+    wantedBy = [ "multi-user.target" ];
+    path = [ pkgs.power-profiles-daemon pkgs.systemd pkgs.coreutils ];
+    serviceConfig.Type = "oneshot";
+    script = ''
+      # Mains is the barrel adapter; USB* covers USB-C PD chargers.
+      online=0
+      for s in /sys/class/power_supply/*; do
+        case "$(cat "$s/type")" in
+          Mains|USB*) [ "$(cat "$s/online" 2>/dev/null)" = 1 ] && online=1 ;;
+        esac
+      done
+      if [ "$online" = 1 ]; then profile=balanced mode=0; else profile=power-saver mode=2; fi
+      echo "charger online=$online -> $profile, bpfland mode $mode"
+      powerprofilesctl set "$profile"
+      # Not fatal: if scx_loader is down the kernel scheduler runs, which is fine.
+      busctl call org.scx.Loader /org/scx/Loader org.scx.Loader \
+        SwitchScheduler su scx_bpfland "$mode" || echo "scx_loader not reachable"
+    '';
+  };
+  # udev must not block on D-Bus calls, so it only queues the unit.
+  services.udev.extraRules = ''
+    ACTION=="change", SUBSYSTEM=="power_supply", ATTR{type}=="Mains|USB*", RUN+="${pkgs.systemd}/bin/systemctl start --no-block power-source-sync.service"
+  '';
+
+  # amd_pstate in active (EPP) mode, which is what power-profiles-daemon drives.
+  # It is the kernel default on Zen 3 with CPPC, so this only pins it; if
+  # /sys/devices/system/cpu/amd_pstate/status is not "active", CPPC is off in
+  # the firmware setup.
+  boot.kernelParams = [ "amd_pstate=active" ];
+
+  # powertop: per-device wattage and wakeups (`sudo powertop`). Only the tool -
+  # powerManagement.powertop.enable (auto-tune at boot) is left off because it
+  # also autosuspends USB input devices, which makes mice/keyboards lag.
+  environment.systemPackages = [ pkgs.powertop ];
   time.timeZone = "Europe/Copenhagen";
   users.users.desu = {
     isNormalUser = true;
@@ -104,6 +155,13 @@
   hardware.nvidia = {
     modesetting.enable = true;
     powerManagement.enable = true;
+    # RTD3: power the dGPU down to D3cold whenever nothing is using it (udev
+    # rules + NVreg_DynamicPowerManagement=0x02). Without it the idle 3060 stays
+    # powered for the whole session. Check on battery with
+    # `cat /sys/bus/pci/devices/0000:01:00.0/power/runtime_status` -> suspended.
+    # If it stays "active", something holds the card open: `nvidia-smi` lists
+    # the process, or an external monitor is on a port wired to the dGPU.
+    powerManagement.finegrained = true;
     # Ampere (3060 Mobile) runs the open kernel modules.
     open = true;
     prime = {

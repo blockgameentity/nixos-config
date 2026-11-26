@@ -5,6 +5,7 @@
   config,
   lib,
   pkgs,
+  yapfast,
   ...
 }: {
   # mkHost in flake.nix already imports modules/base.nix; do not import it again
@@ -214,5 +215,12 @@
     config.default_sched = "scx_bpfland";
   };
 
-  home-manager.users.${config.desu.primaryUser}.imports = [ ../home/graphical.nix ];
+  home-manager.users.${config.desu.primaryUser} = {
+    imports = [ ../home/graphical.nix ];
+    # Yapfast (native Discord client) comes from its own flake input, which home
+    # modules cannot see (no extraSpecialArgs), so it is added here instead of in
+    # home/graphical.nix's package list. Link the account with the QR code on
+    # first start.
+    home.packages = [ yapfast.packages.${pkgs.stdenv.hostPlatform.system}.default ];
+  };
 }
