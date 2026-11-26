@@ -130,6 +130,15 @@
   };
   security.rtkit.enable = true;
 
+  security.pam.loginLimits = [
+    {
+      domain = "desu";
+      type = "soft";
+      item = "nofile";
+      value = "65536";
+    }
+  ];
+
   # Steam is a system service (32-bit libs, its own firewall/udev setup), not a
   # package to drop into home.packages.
   programs.steam.enable = true;
@@ -155,10 +164,15 @@
   # the TkAgg window opens through Xwayland.
   programs.nix-ld = {
     enable = true;
-    libraries = [
-      pkgs.libx11
-      pkgs.wayland
+    libraries = with pkgs; [
+      libx11
+      wayland
     ];
+  };
+
+  programs.appimage = {
+    enable = true;
+    binfmt = true;
   };
 
   # Danish keyboard for X11 and for Wayland compositors. `console.keyMap` in
