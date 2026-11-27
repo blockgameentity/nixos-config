@@ -4,11 +4,18 @@
 {
   config,
   lib,
+  invokeai,
   ...
 }: {
   # Sound processing: GigaWorks T20 speakers (onboard line out) and the Focal
-  # Bathys headphones (DG60P Bluetooth transmitter).
-  imports = [ ./gigaworks-eq.nix ./bathys-eq.nix ];
+  # Bathys headphones (DG60P Bluetooth transmitter). The InvokeAI module comes
+  # from the flake in packages/invokeai.
+  imports = [ ./gigaworks-eq.nix ./bathys-eq.nix invokeai.nixosModules.default ];
+
+  # `invokeai-web` on PATH (web UI on http://127.0.0.1:9090, data in ~/invokeai).
+  # It ships its own CUDA 13 userspace, so only the driver below is needed. For an
+  # always-on service instead, use `services.invokeai.enable`.
+  programs.invokeai.enable = true;
 
   # No global `nixpkgs.config.cudaSupport`: neither cache.nixos.org nor
   # Chaotic-Nyx builds packages with it, so it turned firefox, obs-studio,

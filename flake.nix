@@ -41,6 +41,12 @@
     # rust-overlay), and building it against unstable is untested upstream.
     # Compiled from source; there is no binary cache for it.
     yapfast.url = "github:yapfast/yapfast";
+    # InvokeAI (image generation), built from upstream's uv.lock: see
+    # packages/invokeai/. A path input so it versions with this repo; the flake is
+    # self-contained and can move to its own repo unchanged. No `follows`: it pins
+    # the nixpkgs its CUDA/pnpm hashes were produced against, and its closure is
+    # independent of the system's.
+    invokeai.url = "path:./packages/invokeai";
   };
   outputs = {
     self,
@@ -53,6 +59,7 @@
     ttml,
     spar,
     yapfast,
+    invokeai,
     ...
   }: let
     # A channel pairs a nixpkgs with the Home Manager that supports it.
@@ -79,7 +86,7 @@
     in
       ch.pkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit ttml spar chaotic yapfast; };
+        specialArgs = { inherit ttml spar chaotic yapfast invokeai; };
         modules = [
           ./modules/base.nix
           ch.hm.nixosModules.home-manager
