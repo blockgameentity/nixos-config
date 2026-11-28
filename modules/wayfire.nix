@@ -98,6 +98,7 @@ in {
 
     # --- one line per entry in [autostart] of wayfire.ini ---
     pkgs.wl-clipboard # wl-paste, wl-copy    cliphist
+    cliphist # clipboard history store and picker backend
     wlsunset
     swayidle
     swaylock
