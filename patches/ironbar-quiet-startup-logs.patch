@@ -1,0 +1,78 @@
+diff --git a/src/ipc/server/mod.rs b/src/ipc/server/mod.rs
+index 179a7be..55b7c05 100644
+--- a/src/ipc/server/mod.rs
++++ b/src/ipc/server/mod.rs
+@@ -12,7 +12,7 @@ use gtk::prelude::*;
+ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+ use tokio::net::{UnixListener, UnixStream};
+ use tokio::sync::mpsc::{self, Receiver, Sender};
+-use tracing::{debug, error, info, trace, warn};
++use tracing::{debug, error, info, trace};
+ 
+ use super::Ipc;
+ use crate::channels::{AsyncSenderExt, MpscReceiverExt};
+@@ -30,8 +30,8 @@ impl Ipc {
+         let path = self.path.clone();
+ 
+         if path.exists() {
+-            warn!("Socket already exists. Did Ironbar exit abruptly?");
+-            warn!("Attempting IPC shutdown to allow binding to address");
++            debug!("Socket already exists. Did Ironbar exit abruptly?");
++            debug!("Attempting IPC shutdown to allow binding to address");
+             Self::shutdown(&path);
+         }
+ 
+diff --git a/src/logging.rs b/src/logging.rs
+index de63728..d456d67 100644
+--- a/src/logging.rs
++++ b/src/logging.rs
+@@ -111,12 +111,25 @@ fn install_tracing(debug: bool) -> Result<WorkerGuard> {
+             .and_then(|f| f.value_str())
+             .unwrap_or_default();
+ 
++        // GTK probes the Inhibit portal at startup. Desktops with no Inhibit
++        // backend (Wayfire/wlroots configure it as "none") answer InvalidArgs,
++        // which is expected, so it is not worth a warning.
++        if matches!(level, LogLevel::Warning)
++            && message.starts_with("Cannot get portal org.freedesktop.portal.Inhibit version")
++        {
++            debug!(target: "GTK", "[{domain}] {message}");
++            return LogWriterOutput::Handled;
++        }
++
+         match level {
+             LogLevel::Error => error!(target: "GTK", "[{domain}] {message}"),
+             LogLevel::Critical => error!(target: "GTK", "[{domain}] CRITICAL: {message}"),
+             LogLevel::Warning => warn!(target: "GTK", "[{domain}] {message}"),
+             LogLevel::Message => info!(target: "GTK", "[{domain}] MESSAGE: {message}"),
+-            LogLevel::Info => info!(target: "GTK", "[{domain}] MESSAGE: {message}"),
++            // GLib's own handler hides g_info unless G_MESSAGES_DEBUG is set.
++            // GTK's Vulkan debug-report callback sends every loader INFO line
++            // (device sorting, unused Mesa drivers) through g_info.
++            LogLevel::Info => debug!(target: "GTK", "[{domain}] {message}"),
+             LogLevel::Debug => debug!(target: "GTK", "[{domain}] {message}"),
+         }
+ 
+diff --git a/src/main.rs b/src/main.rs
+index 5df791a..d1d6fbc 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -233,9 +233,15 @@ impl Ironbar {
+             #[cfg(feature = "ipc")]
+             let ipc_path = ipc.path().to_path_buf();
+             spawn(async move {
+-                tokio::signal::ctrl_c()
+-                    .await
+-                    .expect("should handle SIGTERM");
++                // ctrl_c() alone only catches SIGINT: a plain `kill` (SIGTERM)
++                // took the default action and left the IPC socket behind.
++                let mut sigterm =
++                    tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
++                        .expect("should handle SIGTERM");
++                tokio::select! {
++                    res = tokio::signal::ctrl_c() => res.expect("should handle SIGINT"),
++                    _ = sigterm.recv() => {}
++                }
+ 
+                 info!("Shutting down");
+ 

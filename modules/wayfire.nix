@@ -46,12 +46,24 @@
   # `.background` (every GTK window) transparent, and a GTK4 window that draws
   # nothing never attaches a buffer, so Wayfire never mapped the hotspot and it
   # got no pointer events at all - no reveal, by hover or by scroll.
+  #
+  # The fifth is local too: a quiet startup log, with Vulkan kept as the GSK
+  # renderer.
+  # - GTK sends every Vulkan loader INFO line (device sorting, unused Mesa
+  #   drivers) through g_info, which GLib hides by default, but ironbar logged it
+  #   at INFO. It now logs at debug (IRONBAR_LOG=debug shows it again).
+  # - GTK's startup probe of the Inhibit portal, which is deliberately "none"
+  #   below, drops from warn to debug.
+  # - ironbar only waited on SIGINT, so `kill <pid>` (SIGTERM) skipped its
+  #   socket cleanup and the next start warned "Socket already exists". It now
+  #   handles SIGTERM too, and that stale-socket recovery logs at debug.
   ironbar = pkgs.ironbar.overrideAttrs (old: {
     patches = (old.patches or []) ++ [
       ../patches/ironbar-launcher-stale-windows.patch
       ../patches/ironbar-autohide-reveal-on-scroll.patch
       ../patches/ironbar-autohide-close-hotspot.patch
       ../patches/ironbar-autohide-hotspot-css-class.patch
+      ../patches/ironbar-quiet-startup-logs.patch
     ];
   });
 
@@ -176,6 +188,12 @@ in {
   # that cannot change adapter settings. It only does anything on a host that
   # also sets hardware.bluetooth.enable (both workstations do).
   services.blueman.enable = true;
+
+  # ironbar's config.toml is shared by every host, and its battery module talks
+  # to UPower when it is created - show_if only hides it afterwards. Without the
+  # daemon (the desktop has no battery) every bar logged "failed to create module
+  # Battery: ServiceUnknown". The laptop also enables it in its own config.
+  services.upower.enable = true;
 
   # Sessions: the wayfire.desktop above lands in /run/current-system/sw, so a
   # display manager can offer it. The greeter is also what asks for the account
