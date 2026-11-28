@@ -40,7 +40,10 @@ in {
   xdg.configFile."ghostty/shaders/cursor_warp.glsl".source = ./files/ghostty/shaders/cursor_warp.glsl;
 
   # GTK and Qt are dark on both workstations, regardless of what the session
-  # reports. `Adwaita-dark` is the name GTK 3 apps resolve; `colorScheme = "dark"`
+  # reports. GTK 3 apps get adw-gtk3 (https://github.com/lassekongo83/adw-gtk3),
+  # a port of libadwaita's look, so they match the libadwaita/GTK 4 apps; the
+  # GTK 4 side needs no theme (HM leaves gtk4.theme null, so libadwaita is
+  # untouched). `adw-gtk3-dark` is the name GTK 3 apps resolve; `colorScheme = "dark"`
   # additionally writes gtk-application-prefer-dark-theme (GTK 3 and 4) and GTK
   # 4's gtk-interface-color-scheme into ~/.config/gtk-*/settings.ini, and sets
   # org.gnome.desktop.interface color-scheme = prefer-dark in dconf. libadwaita
@@ -51,8 +54,8 @@ in {
   gtk = {
     enable = true;
     theme = {
-      name = "Adwaita-dark";
-      package = pkgs.gnome-themes-extra;
+      name = "adw-gtk3-dark";
+      package = pkgs.adw-gtk3;
     };
     # No iconTheme on purpose: GTK's default (Adwaita, falling back to hicolor)
     # leaves every application's own icon alone. A full theme such as Paper

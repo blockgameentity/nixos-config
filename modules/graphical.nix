@@ -205,7 +205,11 @@
 
   # Adwaita cursors in the system profile, where any app not started
   # from the Home Manager profile resolves XCURSOR_THEME through XCURSOR_PATH.
-  environment.systemPackages = [ pkgs.adwaita-icon-theme ];
+  environment.systemPackages = [
+    pkgs.adwaita-icon-theme
+    pkgs.gnome-disk-utility
+    pkgs.openssl
+  ];
 
   # sched_ext scheduler: bpfland as the default, managed by scx_loader (which
   # also exposes `scxctl` for switching at runtime). Requires kernel >= 6.12,

@@ -22,34 +22,37 @@ Written against the current repository state: three NixOS hosts (server `desu`, 
   libraries via session variables).
 - **Laptop hardware**: AMD microcode, MT7921 wifi + MediaTek Bluetooth, libinput, upower,
   power-profiles-daemon, fwupd; PRIME offload with the real bus IDs (`PCI:5:0:0`, `PCI:1:0:0`).
-- **Remote access**: password SSH over `tailscale0` only on the workstations; Tailscale SSH
-  (`--ssh`) removed there because it intercepts port 22 and would bypass sshd.
+- **Remote access**: OpenSSH servers are disabled on the workstations; their clients remain.
+  The server accepts only Tailscale SSH, subject to tailnet policy.
 - **CI gates**: `checks.config-eval` now evaluates all three hosts, plus the preflight and runner
   unit tests.
 - **Security scaffolding** (unchanged, still valid): nft policy with public HTTP/Cloudflare-only
   ingress, disposable KVM runners, `scripts/preflight.py` secret/permission checks, nix-darwin
   runner config.
 
-## Blocking the server deploy (needs the machine and the secrets)
+## Server migration gates
 
-1. `hosts/desu/local.nix` still has PLACEHOLDER markers: password-hash path, `desu.images.*` not
-   pinned by digest, `blockedIPv4` real origin IPs, `ci-token`. `scripts/preflight.py` refuses to
-   pass until they are real.
-2. Provision `/var/lib/secrets`: `fluxer.env`, `ttml.env`, `cloudflare/origin.pem` + key,
-   `tailscale-auth-key`, `ci-token`, `desu-password-hash`, `restic.env`. Services fail closed.
-3. Before wiping: inventory, verified off-host backups and a restore rehearsal (README
-   "Before wiping the disk").
-4. Install, then the restore runbook: Overleaf (Mongo FCV, bind mounts), Fluxer volumes, TTML
-   SQLite/spool, SPAR data.
-5. **SSH model on the server is undecided**: the repo currently disables OpenSSH there and relies
-   on Tailscale SSH (`--ssh`), while the workstations now use password SSH over the tailnet. Pick
-   one for the server and make all three match.
+- TTML and SPAR image references are pinned in `hosts/desu/local.nix`; no placeholder remains.
+- Four CI pools use separate root-only tokens. Organization groups must explicitly exclude public
+  repositories and untrusted fork workflows. Public `nixos-config` checks use GitHub-hosted runners.
+- Provision the files required by `scripts/preflight.py`, outside Git. Automatic restic backups are
+  disabled, so `restic.env` is not required and there is no automatic server backup.
+- Verify a fresh quiesced off-host Overleaf/SPAR backup immediately before the destructive install.
+  Fluxer starts fresh; do not restore its old database or volumes. Do not migrate the reseed identity
+  or write its old/new endpoint ID into this public repository.
+- Workstations have no SSH server; only the server accepts Tailscale SSH. Verify that from a second
+  device before removing rescue access. The server's Intel/NVMe/Realtek hardware report matches the
+  committed configuration; the final NixOS target still needs a post-partition hardware diff.
+- Four CI VMs use 8 GiB each on the 48 GiB host. Build the complete server closure, pass preflight,
+  run the acceptance checks, and repeat them after reboot.
+- The private cheesetool flake needs a narrow read-only token on trusted local and CI builds. Public
+  untrusted fork builds must not receive that token.
 
 ## Blocking the workstation installs (needs the machines)
 
 1. Partition + LUKS passphrase + `nixos-install` on each machine (README has the exact commands
    per host). Desktop: the ESP is shared with Windows and must not be reformatted.
-2. Accounts need a password hash for password SSH to work (`users.users.desu.hashedPasswordFile`,
+2. Accounts need a password hash for the greeter and sudo to work (`users.users.desu.hashedPasswordFile`,
    same pattern as `hosts/desu/local.nix`). Without it the account is locked. It is the **only**
    secret either workstation needs: write it to `/mnt/var/lib/secrets/desu-password-hash`
    (root:root 0600) while the target is still mounted at `/mnt`.
@@ -72,9 +75,9 @@ Written against the current repository state: three NixOS hosts (server `desu`, 
   acceptance checklist. Plasma is no longer configured anywhere.
 - **Secure Boot**: off everywhere. Needed only for Windows anticheats on the dual-boot desktop;
   Limine's module has the sbctl path when that day comes.
-- **Snapshots**: snapper deliberately not configured; restic is the off-site copy and NixOS
-  generations handle the system. Adding it later needs an `@snapshots` subvolume and a rollback
-  runbook.
+- **Backups**: automatic restic backups are currently disabled; the migration archive is not
+  a continuing backup policy. NixOS generations do not protect application data. Choose a local,
+  SFTP, or other destination before enabling `desu.backup`.
 - **Server LUKS**: decided against (headless box must come back after a power cut); the reasoning
   is in the README.
 - **Hibernation on desktop/server**: not configured (btrfs swap file); laptop only.

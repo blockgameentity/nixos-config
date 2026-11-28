@@ -19,6 +19,10 @@
 
   networking.hostName = "desktop";
 
+  # Rootless podman, for scripts/publish-image.sh (builds the TTML and SPAR images and
+  # pushes them to the private GHCR). Not used to run any service on this machine.
+  virtualisation.podman.enable = true;
+
   # Grayscale antialiasing only. The main display (AW3425DW) is QD-OLED with a
   # triangular subpixel layout, so RGB subpixel rendering would add colour
   # fringes there; the right Acer is portrait (vertical subpixels) as well.
@@ -43,35 +47,16 @@
   users.users.desu = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" "video" "render" ];
-    # Password for sudo and for the tailnet SSH login below. Root-only file,
+    # Password for sudo and the local greeter. Root-only file,
     # provisioned before the first boot; without it the account is locked and
     # sudo rejects every password. Generate it with `mkpasswd -m yescrypt`.
     hashedPasswordFile = "/var/lib/secrets/desu-password-hash";
   };
 
-  # Tailscale itself is enabled by modules/base.nix; only host flags belong here.
-  # No `--ssh`: Tailscale SSH intercepts port 22 on the tailnet and authenticates
-  # by tailnet identity, which would bypass the sshd + password you actually use.
+  # Only the server accepts remote logins, and only through Tailscale SSH.
+  # Workstations retain NixOS's openssh client for connecting to other hosts.
   services.tailscale.extraUpFlags = [ ];
-
-  # Remote access over the tailnet only, with a normal password login:
-  # sshd is enabled, nothing opens 22 on the LAN or WAN, and the only interface
-  # allowed through the firewall is tailscale0.
-  #
-  # The password hash above is what makes this usable: without that file the
-  # account is locked and password logins fail even though sshd accepts them.
-  services.openssh = {
-    enable = true;
-    # The module defaults openFirewall to true, which opened 22 (with password
-    # login) on every interface, wifi included. Only tailscale0 opens it (below).
-    openFirewall = false;
-    settings = {
-      PasswordAuthentication = true;
-      KbdInteractiveAuthentication = false;
-      PermitRootLogin = "no";
-    };
-  };
-  networking.firewall.interfaces.tailscale0.allowedTCPPorts = [ 22 ];
+  services.openssh.enable = false;
   # Limine instead of systemd-boot; kernels are read straight from /boot.
   boot.loader.limine = {
     enable = true;

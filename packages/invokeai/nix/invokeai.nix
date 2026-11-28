@@ -1,5 +1,7 @@
 # InvokeAI: a virtualenv assembled from upstream's uv.lock, plus the built web UI,
-# wrapped so the NVIDIA driver is found on NixOS.
+# wrapped so the NVIDIA driver is found on NixOS. Triton (torch.compile, xformers) has
+# no /sbin/ldconfig to locate libcuda and builds a small CUDA helper with a C compiler
+# at run time, so the wrapper points it at the driver and puts gcc on PATH.
 #
 # Wheel-only (`sourcePreference = "wheel"`): every dependency is the exact wheel
 # upstream locked and hashed, so there is nothing to compile except InvokeAI
@@ -10,6 +12,7 @@
   stdenv,
   callPackage,
   makeWrapper,
+  gcc,
   python312,
   invokeai-src,
   frontend,
@@ -67,7 +70,10 @@ stdenv.mkDerivation {
     for exe in ${venv}/bin/invoke*; do
       name=$(basename "$exe")
       makeWrapper "$exe" "$out/bin/$name" \
-        --prefix LD_LIBRARY_PATH : /run/opengl-driver/lib
+        --prefix LD_LIBRARY_PATH : /run/opengl-driver/lib \
+        --set TRITON_LIBCUDA_PATH /run/opengl-driver/lib \
+        --set-default CC ${gcc}/bin/gcc \
+        --prefix PATH : ${lib.makeBinPath [ gcc ]}
     done
     runHook postInstall
   '';

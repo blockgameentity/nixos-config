@@ -1,3 +1,4 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -6,6 +7,21 @@ from preflight import Checks
 
 
 class PreflightTests(unittest.TestCase):
+    @unittest.skipUnless(hasattr(os, 'geteuid') and os.geteuid() == 0, 'needs chown')
+    def test_cookie_file_must_be_worker_owned(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / 'youtube-cookies.txt'
+            p.write_text('cookie')
+            os.chown(p, 10001, 10001)
+            p.chmod(0o400)
+            c = Checks(Path(d))
+            c.secret(p.name)
+            self.assertEqual(c.failures, [])
+            p.chmod(0o600)
+            os.chown(p, 0, 0)
+            c.secret(p.name)
+            self.assertEqual(len(c.failures), 1)
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)

@@ -109,7 +109,7 @@ in {
     # Hyprland's agent (hyprtoolkit), and under Wayfire its dialog can come up
     # unfocusable, which looks exactly like "no agent at all": the mount or
     # pkexec request just fails. polkit-gnome is a plain GTK3 agent and inherits
-    # the Adwaita-dark theme. Home-manager wraps its libexec binary on PATH as
+    # the adw-gtk3-dark theme. Home-manager wraps its libexec binary on PATH as
     # `polkit-gnome-agent`, which is what the [autostart] line starts.
     polkit_gnome
     swaybg # wallpaper.sh
@@ -156,6 +156,7 @@ in {
     # bottom of this module. Theme comes from the Qt settings in
     # home/graphical.nix; the terminal it opens is set in home/wayfire.nix.
     kdePackages.dolphin
+    kdePackages.ark # archive manager; Dolphin's extract/compress menu entries use it
     kdePackages.kio-extras # thumbnails, sftp://, smb://, mtp:// (phones), recently-used
     kdePackages.ffmpegthumbs # video thumbnails
     kdePackages.kdegraphics-thumbnailers # PDF/PostScript/RAW thumbnails

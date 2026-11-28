@@ -36,6 +36,14 @@
       url = "github:O-Blocken/tilbuds-bot";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # cheesetool reseed server (nixosModules.reseed), for the server. PRIVATE repo:
+    # every machine that evaluates this flake (desktop, laptop, server, CI) needs a
+    # GitHub token in nix `access-tokens`; see docs/cheesetool-reseed.md.
+    cheesetool = {
+      # The flake lives on this branch only (not on main yet); merge it, then drop ?ref.
+      url = "github:blockgameentity/cheesetool?ref=plan/vapor-forge-windows-host";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     # Yapfast: native Discord client (Rust), for the workstations. No `follows`:
     # its flake pins its own nixpkgs and Rust toolchain (rust-toolchain.toml via
     # rust-overlay), and building it against unstable is untested upstream.
@@ -58,6 +66,7 @@
     chaotic,
     ttml,
     spar,
+    cheesetool,
     yapfast,
     invokeai,
     ...
@@ -86,7 +95,7 @@
     in
       ch.pkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit ttml spar chaotic yapfast invokeai; };
+        specialArgs = { inherit ttml spar cheesetool chaotic yapfast invokeai; };
         modules = [
           ./modules/base.nix
           ch.hm.nixosModules.home-manager
@@ -155,7 +164,7 @@
       } ''
         cp -r ${./scripts} scripts
         cd scripts
-        python3 -m unittest -v test_preflight
+        python3 -m unittest -v test_preflight test_public_secrets
         touch $out
       '';
       runner-tests = pkgs.runCommand "runner-tests" {

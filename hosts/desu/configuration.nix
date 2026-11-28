@@ -1,4 +1,4 @@
-{ pkgs, lib, ttml, spar, ... }: {
+{ pkgs, lib, ttml, spar, cheesetool, ... }: {
   imports = [
     # ./hardware-configuration.nix is imported by mkHost in flake.nix, together
     # with ../../modules/base.nix (flakes + nh). Keep this file to what is true
@@ -12,6 +12,7 @@
     ../../modules/maintenance.nix
     ttml.nixosModules.default
     spar.nixosModules.default
+    cheesetool.nixosModules.reseed
   ];
   networking.hostName = "desu";
   networking.useDHCP = true;
@@ -44,6 +45,18 @@
   users.users.desu = { isNormalUser = true; extraGroups = [ "wheel" ]; };
   # local.nix supplies a local console/sudo password hash, not an SSH password.
   environment.systemPackages = with pkgs; [ git curl jq restic ];
+  # cheesetool reseed node (relay-only Iroh endpoint; outbound connections only, so
+  # no inbound port). State, including the identity key iroh-endpoint.key, is
+  # /var/lib/cheesetool-reseed: restore the OLD key there before the first start or
+  # every client orphans (docs/cheesetool-reseed.md). The operator dashboard/API
+  # stays on loopback; reach it with `ssh -L 8080:127.0.0.1:8080` or Tailscale SSH.
+  services.cheesetool-reseed = {
+    enable = true;
+    http.address = "127.0.0.1:8080";
+    # Operator API bearer token (openssl rand -hex 32), root-only; the unit fails
+    # closed without it, like the other secrets in /var/lib/secrets.
+    http.tokenFile = "/var/lib/secrets/cheesetool-reseed-token";
+  };
   services.disposableRunners.enable = true;
   virtualisation.podman.enable = true;
   virtualisation.docker = {

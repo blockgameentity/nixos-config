@@ -14,12 +14,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  public-secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Reject credentials and private operational identifiers
+        run: python3 scripts/check-public-secrets.py
+
   flake:
+    # Forks cannot receive the private cheesetool read token. The public-source
+    # scan above still runs for every pull request; no self-hosted runner is used.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      # Actions are pinned to commit SHAs: a moved tag must not get to run in a
-      # repository that holds deployment configuration.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
@@ -28,10 +39,7 @@ jobs:
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
-      # Assertions run here: checks.config-eval evaluates every host exactly as
-      # `nixos-install` would, with no `assertions = []` override. That is what
-      # caught the missing sessionPackages. scripts/preflight.py needs the real
-      # secrets and is not run in CI.
+            access-tokens = github.com=${{ secrets.NIX_ACCESS_TOKEN }}
       - name: Flake check (evaluation only)
         run: nix flake check --no-build
       - name: Cheap gates (preflight tests, runner tests, config evaluation)

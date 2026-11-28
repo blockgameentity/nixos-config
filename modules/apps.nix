@@ -1,6 +1,13 @@
 { config, lib, pkgs, ... }:
 let
   cfg = config.desu;
+  # Private GHCR: images are published by scripts/publish-image.sh and pinned by digest.
+  # The server pulls with a read:packages-only token that never enters git or the store.
+  ghcrLogin = {
+    registry = "ghcr.io";
+    username = "blockgameentity";
+    passwordFile = "/var/lib/secrets/ghcr-token";
+  };
   # services/fluxer is vendored verbatim from the upstream self-hosting compose
   # bundle, so the file names are upstream's: docker-compose.yml is the stack and
   # docker-compose.proxy.yml is the overlay that puts it behind an existing
@@ -61,6 +68,9 @@ in {
   };
   config = {
     systemd.tmpfiles.rules = [
+      # The SPAR container runs as UID 10001, so root ownership here would
+      # revoke access to its restored database and configuration on every boot.
+      "d /srv/spar 0700 10001 10001 -"
       "d /srv/overleaf 0750 root root -"
       "d /srv/overleaf/data 0750 root root -"
       "d /srv/overleaf/mongo 0750 root root -"
@@ -70,6 +80,9 @@ in {
     virtualisation.oci-containers = {
       backend = "podman";
       containers = {
+        # Defined by the ttml and spar flake modules; only the registry login is added here.
+        ttml-fixer-api.login = ghcrLogin;
+        ttml-fixer-worker.login = ghcrLogin;
         overleaf-mongo = {
           image = cfg.images.mongo;
           cmd = [ "--replSet" "overleaf" ];
@@ -100,6 +113,8 @@ in {
             EMAIL_CONFIRMATION_DISABLED = "true";
           };
         };
+      } // lib.optionalAttrs (cfg.images.spar != null) {
+        spar-bot.login = ghcrLogin;
       };
     };
     # Container contract lives in the upstream flakes; only deployment inputs
@@ -108,12 +123,39 @@ in {
       enable = true;
       image = cfg.images.ttml;
       cookieFile = cfg.ttmlCookies;
+      # Nothing secret is left for an env file (API tokens live in the token DB), so none is
+      # required; set this to a file again if a secret setting is ever needed.
+      environmentFile = null;
+      # The old .env matched the repo defaults except this one, plus GPU-era runtime values
+      # (device, torch.compile, batch sizes) that would override the homelab-cpu profile, so
+      # it is deliberately NOT carried over. Public mode needs a token DB with an active token
+      # and explicit HTTPS CORS origins (TTML_FIXER_CORS_ORIGINS, below).
+      extraEnvironment = {
+        TTML_FIXER_PUBLIC_INSTANCE = "true";
+        TTML_FIXER_LYRICS_PROVIDERS = "true";
+        # Browser origins allowed to call the API. Only the Spicy Lyrics (Spicetify) extension
+        # runs in a browser context: it fetches from Spotify's own page. Limusic calls the API
+        # from native Rust code (no CORS), so it needs only a bearer token. CORS is not access
+        # control; per-client bearer tokens are what restrict use (docs/ttml-clients.md).
+        TTML_FIXER_CORS_ORIGINS = "https://xpui.app.spotify.com";
+      };
     };
     services.sparBot = lib.mkIf (cfg.images.spar != null) {
       enable = true;
       image = cfg.images.spar;
     };
-    systemd.services = lib.genAttrs [ "podman-overleaf-mongo" "podman-overleaf-redis" ] (_: {
+    # Every Podman container (Overleaf, TTML, SPAR) starts on boot (oci-containers
+    # autoStart wires each unit into multi-user.target) and is restarted whenever
+    # it exits, not only on failure, forever: the default `on-failure` plus
+    # systemd's start-rate limit would leave a container down after a crash loop
+    # or a clean exit. A power cut simply means everything comes back at next boot.
+    systemd.services = lib.mkMerge [ (lib.mapAttrs' (name: _: lib.nameValuePair "podman-${name}" {
+      serviceConfig = {
+        Restart = lib.mkForce "always";
+        RestartSec = 5;
+      };
+      unitConfig.StartLimitIntervalSec = 0;
+    }) config.virtualisation.oci-containers.containers) (lib.genAttrs [ "podman-overleaf-mongo" "podman-overleaf-redis" ] (_: {
       requires = [ "app-network.service" ];
       after = [ "app-network.service" ];
     }) // {
@@ -145,6 +187,10 @@ in {
         serviceConfig.TimeoutStartSec = lib.mkForce 300;
       };
       # Compose retains Fluxer's health-gated dependencies and initialization job.
+      # Always (re)started: wantedBy brings it up on every boot, including after a
+      # power cut (no clean shutdown happened, so nothing is "stopped manually"),
+      # and Restart retries `up -d` if it failed early (slow network, docker not
+      # ready). Once up, Compose's own `restart: unless-stopped` covers crashes.
       fluxer = {
         wantedBy = [ "multi-user.target" ];
         requires = [ "docker.service" ];
@@ -177,10 +223,12 @@ in {
           # release and the API waits on 21 health gates; 20 minutes covers a
           # restore-sized first start without masking a genuinely stuck stack.
           TimeoutStartSec = 1200;
+          Restart = "on-failure";
+          RestartSec = 30;
           ExecStart = "${compose} up -d --remove-orphans";
           ExecStop = "${compose} stop";
         };
       };
-    };
+    }) ];
   };
 }

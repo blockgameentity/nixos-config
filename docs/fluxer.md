@@ -19,7 +19,7 @@ Files, all copied unmodified:
 
 - `docker-compose.yml` — the stack (21 services).
 - `docker-compose.proxy.yml` — the upstream overlay for "another web server owns 80/443".
-  `modules/edge.nix` terminates TLS with the Cloudflare Origin CA certificate and forwards
+  `modules/edge.nix` obtains a public ACME certificate and forwards
   to the address in `desu.fluxer.edgeBind` (`127.0.0.1:42295`), exactly as it did for the
   old in-compose Caddy.
 - `Caddyfile` — upstream edge configuration (the container is Caddy, the *service* is `edge`).
@@ -33,7 +33,7 @@ Files, all copied unmodified:
 Upstream moved self-hosting to `rexctl` (`deploy/self-hosting/README.md` in the Fluxer repo is
 now a one-line pointer). `rexctl` installs Docker itself, owns `/opt/fluxer`, writes its own
 systemd units and runs its own backup/upgrade timers. On this host all four of those are
-already owned by something else (NixOS, `/var/lib/secrets`, restic, `nh os switch`), so the
+already owned by something else (NixOS, `/var/lib/secrets`, `nh os switch`), so the
 compose bundle — which upstream still publishes and documents as the manual path — is the
 right fit. `rexctl takeover --dir <folder>` is the escape hatch if that ever changes; it adopts
 an existing compose instance without downtime.

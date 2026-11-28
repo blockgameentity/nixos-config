@@ -91,32 +91,16 @@
   users.users.desu = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" ];
-    # Password for sudo and for the tailnet SSH login below. Root-only file,
+    # Password for sudo and the local greeter. Root-only file,
     # provisioned before the first boot; without it the account is locked and
     # sudo rejects every password. Generate it with `mkpasswd -m yescrypt`.
     hashedPasswordFile = "/var/lib/secrets/desu-password-hash";
   };
 
-  # Typical laptop baseline; adjust to the actual hardware.
-  # Tailscale itself is enabled by modules/base.nix; only host flags belong here.
-  # No `--ssh`: Tailscale SSH intercepts port 22 on the tailnet and authenticates
-  # by tailnet identity, which would bypass the sshd + password you actually use.
+  # Only the server accepts remote logins, and only through Tailscale SSH.
+  # The OpenSSH client remains available for connecting to other hosts.
   services.tailscale.extraUpFlags = [ ];
-
-  # Password SSH over the tailnet only (sshd enabled, port 22 opened on nothing
-  # but tailscale0). The hash above is what the login prompt checks.
-  services.openssh = {
-    enable = true;
-    # The module defaults openFirewall to true, which opened 22 (with password
-    # login) on every interface, wifi included. Only tailscale0 opens it (below).
-    openFirewall = false;
-    settings = {
-      PasswordAuthentication = true;
-      KbdInteractiveAuthentication = false;
-      PermitRootLogin = "no";
-    };
-  };
-  networking.firewall.interfaces.tailscale0.allowedTCPPorts = [ 22 ];
+  services.openssh.enable = false;
 
   # Firmware updates (BIOS/EC via LVFS and the NVMe/SSD firmware) - the laptop is
   # the machine where those actually matter.

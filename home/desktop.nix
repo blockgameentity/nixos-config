@@ -5,7 +5,7 @@
   ...
 }: {
   home.packages = with pkgs; [
-    alcom # VRChat package manager (successor to VCC)
+    (callPackage ../packages/alcom.nix { }) # gui-v1.2.0-beta.3
     unityhub
     cudaPackages.cudatoolkit # nvcc + CUDA libraries for local work
   ];

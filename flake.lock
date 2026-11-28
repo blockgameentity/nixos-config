@@ -21,6 +21,28 @@
         "type": "github"
       }
     },
+    "cheesetool": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "rust-overlay": "rust-overlay"
+      },
+      "locked": {
+        "lastModified": 1795763150,
+        "narHash": "sha256-R0IC8HlQ/pCMQZyQbgV2Ztj5r5NfQhzDYlNZh0hBmPo=",
+        "owner": "blockgameentity",
+        "repo": "cheesetool",
+        "rev": "699a1e384e43345e2d1339118fe3a1ecf8b471fb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "blockgameentity",
+        "ref": "plan/vapor-forge-windows-host",
+        "repo": "cheesetool",
+        "type": "github"
+      }
+    },
     "flake-schemas": {
       "locked": {
         "lastModified": 1780327564,
@@ -284,6 +306,7 @@
     "root": {
       "inputs": {
         "chaotic": "chaotic",
+        "cheesetool": "cheesetool",
         "home-manager": "home-manager_2",
         "home-manager-stable": "home-manager-stable",
         "invokeai": "invokeai",
@@ -296,6 +319,27 @@
       }
     },
     "rust-overlay": {
+      "inputs": {
+        "nixpkgs": [
+          "cheesetool",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1795689650,
+        "narHash": "sha256-gvke5rg5P9S2TAXdOASCqEPc/OdvPKaHIGoMlbYLJ/E=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "8771c4aba509d6efb8bf376fd8cb657cce52b013",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "rust-overlay_2": {
       "inputs": {
         "nixpkgs": [
           "yapfast",
@@ -323,11 +367,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1795371946,
-        "narHash": "sha256-Z8t7v8x7/b6Wqo8GNvejP4AGPgS74iH6Qouyxp4il1w=",
+        "lastModified": 1795373453,
+        "narHash": "sha256-GpJRDiUJBcpsDO8+YFTT/Crom1z1pizIZDreDVeYuYI=",
         "owner": "O-Blocken",
         "repo": "tilbuds-bot",
-        "rev": "72bc1635af83c8f77e370bd412e3a2d5975b2e6b",
+        "rev": "7cb46b20e7938606fd45fe9b53ff81c448485c90",
         "type": "github"
       },
       "original": {
@@ -343,11 +387,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1795371823,
-        "narHash": "sha256-fG/BWke5GU2XpuCICDamxxRTuHWROfQDhy/dzVAsDBE=",
+        "lastModified": 1795762669,
+        "narHash": "sha256-g/4DFXj3PGUyEUkGIJm0UaI+PsZ2DYmX5mFuqF/OnwQ=",
         "owner": "blockgameentity",
         "repo": "ttml-fixer",
-        "rev": "55161383a8966900a5ae97d0295aa286d4088529",
+        "rev": "23003b8e5e51f9731802f644fbc9271a5731c1fb",
         "type": "github"
       },
       "original": {
@@ -384,7 +428,7 @@
     "yapfast": {
       "inputs": {
         "nixpkgs": "nixpkgs_4",
-        "rust-overlay": "rust-overlay"
+        "rust-overlay": "rust-overlay_2"
       },
       "locked": {
         "lastModified": 1795656557,

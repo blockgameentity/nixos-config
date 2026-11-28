@@ -182,6 +182,8 @@
     go
     # General CLI tools.
     act # run GitHub Actions locally
+    unzip
+    _7zz # official 7-Zip; the binary is `7zz`
     pandoc
     android-tools # adb
     scrcpy

@@ -67,7 +67,13 @@ lib.mergeAttrsList (
         # The server serves `<invokeai/frontend/webv2>/dist`; the wheel does not
         # contain it (it is a build artifact upstream), so install the Vite bundle
         # there.
+        #
+        # Upstream also copies its README into the (writable) root with shutil.copy, which copies
+        # the store file's read-only mode too, so every start after the first dies with
+        # PermissionError; copyfile copies the contents only.
         postInstall = (old.postInstall or "") + ''
+          substituteInPlace $out/${sp}/invokeai/app/invocations/load_custom_nodes.py \
+            --replace-fail "shutil.copy(source_custom_nodes" "shutil.copyfile(source_custom_nodes"
           cp -r ${frontend} $out/${sp}/invokeai/frontend/webv2/dist
         '';
       });

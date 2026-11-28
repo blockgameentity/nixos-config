@@ -18,10 +18,12 @@ class LifecycleTests(unittest.TestCase):
                     'diskGiB': 80, 'cpus': 4, 'memoryMiB': 1024, 'tap': 'ci-tap1',
                     'address': '10.203.1', 'ttlSeconds': 60}
         self.calls = []
-        def api(token, repo, method, suffix, data=None):
-            self.calls.append((repo, method, suffix, data))
+        def api(token, target, method, suffix, data=None):
+            self.calls.append((target, method, suffix, data))
             if method == 'POST':
                 return {'runner': {'id': 42}, 'encoded_jit_config': 'SHORT-LIVED-JIT'}
+            if suffix == '/runner-groups':
+                return {'runner_groups': [{'id': 7, 'name': 'Self-hosted CI'}]}
         self.api = api
         self.process = Mock()
         self.process.poll.return_value = 0
@@ -65,7 +67,7 @@ class LifecycleTests(unittest.TestCase):
         (self.state / 'registration.json').write_text(json.dumps({'repo': 'old/repo', 'id': 99}))
         (self.state / 'job-orphan').mkdir()
         self.run_job()
-        self.assertEqual(self.calls[0][:3], ('old/repo', 'DELETE', '/99'))
+        self.assertEqual(self.calls[0][:3], (('repository', 'old/repo'), 'DELETE', '/99'))
         self.assertEqual(list(self.state.iterdir()), [])
 
     def test_failed_deregistration_retains_journal_not_disk(self):
@@ -88,9 +90,33 @@ class LifecycleTests(unittest.TestCase):
 
     def test_api_rejects_untrusted_paths(self):
         with self.assertRaises(ValueError):
-            controller.api('secret', '../bad', 'POST', '/generate-jitconfig')
+            controller.api('secret', ('repository', '../bad'), 'POST', '/generate-jitconfig')
         with self.assertRaises(ValueError):
-            controller.api('secret', 'owner/repo', 'GET', '/../../bad')
+            controller.api('secret', ('repository', 'owner/repo'), 'GET', '/../../bad')
+
+    def test_organization_uses_named_restricted_group(self):
+        self.cfg['organization'] = 'private-org'
+        self.cfg['runnerGroup'] = 'Self-hosted CI'
+        del self.cfg['repository']
+        self.run_job()
+        self.assertEqual(self.calls[0][:3], (('organization', 'private-org'), 'GET', '/runner-groups'))
+        self.assertEqual(self.calls[1][3]['runner_group_id'], 7)
+        self.assertEqual(self.calls[-1][:3], (('organization', 'private-org'), 'DELETE', '/42'))
+
+    def test_organization_requires_explicit_group(self):
+        self.cfg['organization'] = 'private-org'
+        del self.cfg['repository']
+        with self.assertRaises(ValueError):
+            self.run_job()
+        self.assertEqual(self.calls, [])
+
+    def test_missing_organization_group_fails_before_registration(self):
+        self.cfg['organization'] = 'private-org'
+        self.cfg['runnerGroup'] = 'Wrong group'
+        del self.cfg['repository']
+        with self.assertRaises(RuntimeError):
+            self.run_job()
+        self.assertFalse(any(call[1] == 'POST' for call in self.calls))
 
 
 if __name__ == '__main__':

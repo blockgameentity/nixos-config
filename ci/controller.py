@@ -29,17 +29,26 @@ def remove_tree(path):
         raise RuntimeError("Cannot remove disposable VM state; refusing reuse") from error
 
 
-def validate_api_request(repo, suffix):
-    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*', repo):
-        raise ValueError("Expected owner/repository")
-    if not re.fullmatch(r'/(generate-jitconfig|[0-9]+)', suffix):
+def api_path(target):
+    kind, name = target
+    target = (kind, name)
+    if kind == 'repository':
+        if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*', name):
+            raise ValueError("Expected owner/repository")
+        return f'repos/{name}'
+    if kind == 'organization':
+        if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9-]*', name):
+            raise ValueError("Invalid organization")
+        return f'orgs/{name}'
+    raise ValueError("Invalid runner target")
+
+
+def api(token, target, method, suffix, data=None):
+    path = api_path(target)
+    if not re.fullmatch(r'/(generate-jitconfig|runner-groups|[0-9]+)', suffix):
         raise ValueError("Invalid GitHub API operation")
-
-
-def api(token, repo, method, suffix, data=None):
-    validate_api_request(repo, suffix)
     request = urllib.request.Request(
-        f"https://api.github.com/repos/{repo}/actions/runners{suffix}",
+        f"https://api.github.com/{path}/actions/runners{suffix}",
         data=None if data is None else json.dumps(data).encode(), method=method,
         headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json",
                  "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json"})
@@ -54,12 +63,37 @@ def api(token, repo, method, suffix, data=None):
         raise RuntimeError(f"GitHub {method} failed: HTTP {error.code}") from None
 
 
+def target_of(cfg):
+    repository = cfg.get('repository')
+    organization = cfg.get('organization')
+    if bool(repository) == bool(organization):
+        raise ValueError("Configure exactly one repository or organization")
+    if organization and not cfg.get('runnerGroup'):
+        raise ValueError("Organization runners require a named, restricted runner group")
+    return ('organization', organization) if organization else ('repository', repository)
+
+
+def runner_group_id(cfg, token, api_call):
+    if not cfg.get('organization'):
+        return 1
+    # A named group makes the repository/workflow restriction explicit. Group 1
+    # is used only for repository registration, never silently for organizations.
+    groups = api_call(token, target_of(cfg), 'GET', '/runner-groups')
+    matches = [group['id'] for group in groups['runner_groups']
+               if group['name'] == cfg['runnerGroup']]
+    if len(matches) != 1:
+        raise RuntimeError("Configured GitHub runner group is missing or ambiguous")
+    return matches[0]
+
+
 def run_once(cfg, token, state, api_call=api, popen: Callable[..., Any] = subprocess.Popen):
+    target = target_of(cfg)
     pending = state / "registration.json"
     # Recover registrations left by power loss or a failed DELETE. Fail closed if cleanup fails.
     if pending.exists():
         old = read_json(pending)
-        api_call(token, old['repo'], "DELETE", f"/{old['id']}")
+        old_target = tuple(old['target']) if 'target' in old else ('repository', old['repo'])
+        api_call(token, old_target, "DELETE", f"/{old['id']}")
         pending.unlink()
     for old in state.glob("job-*"):
         if old.is_dir():
@@ -71,10 +105,11 @@ def run_once(cfg, token, state, api_call=api, popen: Callable[..., Any] = subpro
     try:
         subprocess.run([cfg['qemuImg'], 'create', '-q', '-f', 'qcow2', '-F', 'qcow2',
                         '-b', cfg['image'], str(work / 'disk.qcow2'), f"{cfg['diskGiB']}G"], check=True)
-        registration = api_call(token, cfg['repository'], 'POST', '/generate-jitconfig', {
-            'name': f"{cfg['name']}-{uuid.uuid4().hex[:12]}", 'runner_group_id': 1,
+        registration = api_call(token, target, 'POST', '/generate-jitconfig', {
+            'name': f"{cfg['name']}-{uuid.uuid4().hex[:12]}",
+            'runner_group_id': runner_group_id(cfg, token, api_call),
             'labels': cfg['labels'], 'work_folder': '_work'})
-        pending.write_text(json.dumps({'repo': cfg['repository'], 'id': registration['runner']['id']}))
+        pending.write_text(json.dumps({'target': target, 'id': registration['runner']['id']}))
         # Sync the recovery journal before launching any guest.
         with pending.open('rb') as journal:
             os.fsync(journal.fileno())
@@ -106,7 +141,7 @@ def run_once(cfg, token, state, api_call=api, popen: Callable[..., Any] = subpro
         remove_tree(work)
         if pending.exists():
             old = read_json(pending)
-            api_call(token, old['repo'], 'DELETE', f"/{old['id']}")
+            api_call(token, tuple(old['target']), 'DELETE', f"/{old['id']}")
             pending.unlink()
 
 
