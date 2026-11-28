@@ -70,10 +70,12 @@ lib.mergeAttrsList (
         #
         # Upstream also copies its README into the (writable) root with shutil.copy, which copies
         # the store file's read-only mode too, so every start after the first dies with
-        # PermissionError; copyfile copies the contents only.
+        # PermissionError. Copy the contents only, and unlink the destination first because an
+        # earlier run may already have left a read-only README that copyfile cannot overwrite.
         postInstall = (old.postInstall or "") + ''
           substituteInPlace $out/${sp}/invokeai/app/invocations/load_custom_nodes.py \
-            --replace-fail "shutil.copy(source_custom_nodes" "shutil.copyfile(source_custom_nodes"
+            --replace-fail "shutil.copy(source_custom_nodes" \
+              $'target_custom_nodes_readme_path.unlink(missing_ok=True)\n    shutil.copyfile(source_custom_nodes'
           cp -r ${frontend} $out/${sp}/invokeai/frontend/webv2/dist
         '';
       });
